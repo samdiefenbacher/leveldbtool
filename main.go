@@ -1,14 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/danhale-git/mine/pkg/convert"
 
 	"github.com/midnightfreddie/McpeTool/world"
 )
-
-const blocksPerChunk = 16.0
 
 //https://github.com/midnightfreddie/McpeTool/blob/master/examples/PowerShell/CsCoords.ps1
 //https://minecraft.gamepedia.com/Bedrock_Edition_level_format
@@ -20,25 +19,34 @@ func init() {
 }
 
 func main() {
-	path := "C:\\Users\\danha\\AppData\\Local\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\games\\com.mojang\\minecraftWorlds\\qOV5X3kvAAA="
-	_, err := world.OpenWorld(path)
+	path := "C:\\Users\\danha\\AppData\\Local\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\games" +
+		"\\com.mojang\\minecraftWorlds\\qOV5X3kvAAA="
+	w, err := world.OpenWorld(path)
 
 	if err != nil {
 		log.Println("error opening world", err)
 	}
 
-	convert.CoordsToDBKey(413, 105, 54, 0)
+	key := convert.CoordsToSubChunkKey(1, 40, 1, 0)
+
+	log.Printf("%x", key)
 
 	if err != nil {
 		log.Println(err)
 	}
 
-	/*b, err := w.Get([]byte(GetKeyByCoords(17, 17, 50, 0)))
-	log.Println(b, err)
+	b, err := w.Get(key)
+	log.Printf("%x", b)
+
+	if err != nil {
+		log.Println(err)
+	}
+
 	err = w.Close()
+
 	if err != nil {
 		fmt.Println(err)
-	}*/
+	}
 }
 
 /*func GetKeyByCoords(x, z, y, dimension int) string {
