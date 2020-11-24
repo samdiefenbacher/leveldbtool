@@ -136,12 +136,12 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 	blocksPerWord := math.Floor(float64(32 / bitsPerBlock))
 
 	// Total count of block state indices
-	indexCount := int(math.Ceil(4096/blocksPerWord)) * int(blocksPerWord)
+	indexCount := 4096 // int(math.Ceil(4096/blocksPerWord)) * int(blocksPerWord)
 
 	if 32%int(blocksPerWord) != 0 { // TODO: Handle all blocksPerword amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
 		// "For the blocksPerWord values which are not factors of 32, each 32-bit integer contains two (high) bits of padding. Block state indices are not split across words."
 		// Probably need to handle: "Block state indices are *not split across words*"
-		log.Fatalf("blocksPerWord is not a factor of 32")
+		log.Fatalf("blocksPerWord value of %f is not a factor of 32", blocksPerWord)
 	}
 
 	if bitsPerBlock != 4 { // TODO: Handle all bitsPerBlock amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
@@ -151,7 +151,6 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 	dataBits := NewBitReader(data)
 
 	indices := make([]int, indexCount)
-	//set := make(map[string]int) //DEBUG
 	for i := 0; i < indexCount; i++ {
 		// Read one block
 		idxBits, err := dataBits.ReadBits(bitsPerBlock)
@@ -159,12 +158,13 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 			return BlockStorage{}, nil
 		}
 
+		// Index of this block's state in the palette
 		idx := int(boolsToBytes(idxBits)[0] >> 4) // TODO: see if statement above, this is specific to a bitsPerBlock value of 4. Because we are converting 4 bits to a byte, we shift it 4 bits to the right to get the correct value.
 		indices[i] = idx
 	}
 
 	if dataBits.Offset() != 8 { // TODO: This does not necessarily mean things are broken
-		log.Fatalf("finished reading indices part way through a byte")
+		log.Fatalf("finished reading indices of size %d bits part way through a byte", bitsPerBlock)
 	}
 
 	// Number of blocks states in the palette

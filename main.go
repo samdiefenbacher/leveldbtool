@@ -53,8 +53,16 @@ func main() {
 	}
 
 	// Print stuff about chunk
-	blocks := subChunk.BlockStorage[0]
+	PrintBlockStorage(subChunk.BlockStorage[0])
 
+	err = w.Close()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func PrintBlockStorage(blocks mcdata.BlockStorage) {
 	uniqueCounts := make(map[string]int)
 
 	for _, idx := range blocks.BlockStateIndices {
@@ -90,10 +98,4 @@ func main() {
 	}
 
 	fmt.Println("total blocks -", total)
-
-	err = w.Close()
-
-	if err != nil {
-		fmt.Println(err)
-	}
 }
