@@ -32,31 +32,64 @@ func main() {
 		log.Println("error opening world", err)
 	}
 
-	/*b, err := w.GetKeys()
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	for _, key := range b[:50] {
-		dst := make([]byte, 0)
-		fmt.Println(hex.Decode(dst, key))
-	}
-	*/
-
+	// Determine key from XYZ coordinates
 	x, y, z := 1, 40, 1
 
 	key := convert.CoordsToSubChunkKey(x, y, z, 0)
 
 	log.Printf("CoordsToSubChunkKey: %x", key)
 
+	// Get data at key
 	b, err := w.Get(key)
 
 	if err != nil {
 		log.Println(err)
 	}
 
-	mcdata.NewSubChunk(b)
+	// Read data into SubChunk struct
+	subChunk, err := mcdata.NewSubChunk(b)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Print stuff about chunk
+	blocks := subChunk.BlockStorage[0]
+
+	uniqueCounts := make(map[string]int)
+
+	for _, idx := range blocks.BlockStateIndices {
+		description := ""
+
+		name, err := blocks.BlockName(idx)
+		description += name
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		states, err := blocks.BlockStateTags(idx)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		for _, state := range states {
+			description += fmt.Sprintf(" - %v %v", state.Name, state.Value)
+		}
+
+		if _, ok := uniqueCounts[description]; !ok {
+			uniqueCounts[description] = 1
+		} else {
+			uniqueCounts[description]++
+		}
+	}
+
+	total := 0
+	for k, v := range uniqueCounts {
+		fmt.Println(k, v)
+		total += v
+	}
+
+	fmt.Println("total blocks -", total)
 
 	err = w.Close()
 
