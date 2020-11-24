@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/danhale-git/mine/pkg/mcdata"
+
 	"github.com/danhale-git/mine/pkg/convert"
 
 	"github.com/midnightfreddie/McpeTool/world"
+	//"github.com/midnightfreddie/nbt2json"
 )
 
 //https://github.com/midnightfreddie/McpeTool/blob/master/examples/PowerShell/CsCoords.ps1
@@ -19,28 +22,41 @@ func init() {
 }
 
 func main() {
+	/*path := "C:\\Users\\danha\\AppData\\Local\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\games" +
+	"\\com.mojang\\minecraftWorlds\\qOV5X3kvAAA="*/
 	path := "C:\\Users\\danha\\AppData\\Local\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\games" +
-		"\\com.mojang\\minecraftWorlds\\qOV5X3kvAAA="
+		"\\com.mojang\\minecraftWorlds\\4xq8X8xLAAA="
 	w, err := world.OpenWorld(path)
 
 	if err != nil {
 		log.Println("error opening world", err)
 	}
 
-	key := convert.CoordsToSubChunkKey(1, 40, 1, 0)
-
-	log.Printf("%x", key)
+	/*b, err := w.GetKeys()
 
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
+
+	for _, key := range b[:50] {
+		dst := make([]byte, 0)
+		fmt.Println(hex.Decode(dst, key))
+	}
+	*/
+
+	x, y, z := 1, 40, 1
+
+	key := convert.CoordsToSubChunkKey(x, y, z, 0)
+
+	log.Printf("CoordsToSubChunkKey: %x", key)
 
 	b, err := w.Get(key)
-	log.Printf("%x", b)
 
 	if err != nil {
 		log.Println(err)
 	}
+
+	mcdata.NewSubChunk(b)
 
 	err = w.Close()
 
@@ -48,30 +64,3 @@ func main() {
 		fmt.Println(err)
 	}
 }
-
-/*func GetKeyByCoords(x, z, y, dimension int) string {
-	var Tag byte = 0x2f
-
-	var d string
-	if dimension != 0 {
-		d = hex(dimension)
-	}
-
-	var t string
-
-	if Tag == byte(0x2f) {
-		SubChunkY := byte(y / blocksPerChunk)
-		t = hex(SubChunkY)
-	}
-
-	ChunkX := int32(math.Floor(float64(x) / blocksPerChunk))
-	ChunkZ := int32(math.Floor(float64(z) / blocksPerChunk))
-
-	log.Println("val:", ChunkX, "hex:", hex(ChunkX))
-
-	return hex(ChunkX) + hex(ChunkZ) + d + hex(Tag) + t
-}
-
-func hex(i interface{}) string {
-	return fmt.Sprintf("%x", i)
-}*/
