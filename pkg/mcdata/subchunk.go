@@ -3,58 +3,14 @@ package mcdata
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
+
+	"github.com/midnightfreddie/nbt2json"
 )
-
-type BitReader struct {
-	reader *bytes.Reader
-	byte   byte
-	offset byte
-}
-
-func NewBitReader(reader *bytes.Reader) BitReader {
-	return BitReader{reader: reader}
-}
-
-func (r *BitReader) Offset() int {
-	return int(r.offset)
-}
-
-func (r *BitReader) ReadBits(count int) ([]bool, error) {
-	b := make([]bool, count)
-
-	for i := 0; i < count; i++ {
-		bit, err := r.ReadBit()
-		if err != nil {
-			return b, err
-		}
-
-		b[i] = bit
-	}
-
-	return b, nil
-}
-
-func (r *BitReader) ReadBit() (bool, error) {
-	if r.offset == 8 {
-		r.offset = 0
-	}
-
-	if r.offset == 0 {
-		var err error
-		if r.byte, err = r.reader.ReadByte(); err != nil {
-			return false, err
-		}
-	}
-
-	bit := (r.byte & (0x80 >> r.offset)) != 0
-
-	r.offset++
-
-	return bit, nil
-}
 
 type SubChunk struct {
 	data         []byte         // The raw sub chunk data
@@ -65,9 +21,7 @@ type SubChunk struct {
 }
 
 type BlockStorage struct {
-	version      int
-	bitsPerBlock int // Valid values are 1, 2, 3, 4, 5, 6, 8 and 16. Used to calculate the number of
-	// blocks per 32-bit integer (blocks per word), where blocksPerWord = floor(32 / bitsPerBlock).
+	version int
 
 	blockStateIndices interface{} // The block states as indices into the palette, packed into
 	// ceil(4096 / blocksPerWord) 32-bit little-endian unsigned integers.
@@ -75,14 +29,32 @@ type BlockStorage struct {
 	paletteSize uint32 // A 32-bit little-endian integer specifying the number of block states in the
 	// palette.
 
-	blockStates []interface{} // The specified number of block states in little-endian NBT format, concatenated.
+	blockStates []BlockState // The specified number of block states in little-endian NBT format, concatenated.
+}
+
+type BlockState struct {
+	TagType int
+	Name    string
+	Value   interface{}
+}
+
+func (b *BlockStorage) StateName(index int) (string, error) {
+	state := b.blockStates[index]
+
+	for _, t := range state.Value.([]interface{}) {
+		tag := t.(map[string]interface{})
+		if tag["name"] == "name" {
+			return tag["value"].(string), nil
+		}
+	}
+
+	return "", fmt.Errorf("reading block name: no tag found with name 'name'")
 }
 
 func NewSubChunk(data []byte) (SubChunk, error) {
 	r := bytes.NewReader(data)
 
 	version := int(readByte(r))
-	fmt.Println("version:", version)
 
 	switch version {
 	case 1:
@@ -91,13 +63,12 @@ func NewSubChunk(data []byte) (SubChunk, error) {
 	case 8:
 		// Number of BlockStorage objects to read
 		storageCount := int(readBytes(r, 1)[0])
-		fmt.Println("storageCount:", storageCount)
 
 		blocks := make([]BlockStorage, storageCount)
 
 		// Read BlockStorage data and create objects
 		for i := 0; i < storageCount; i++ {
-			b, err := NewBlock(r)
+			b, err := NewBlockStorage(r)
 			if err != nil {
 				return SubChunk{}, fmt.Errorf("creating new block: %s", err)
 			}
@@ -115,29 +86,31 @@ func NewSubChunk(data []byte) (SubChunk, error) {
 	}
 }
 
-func NewBlock(data *bytes.Reader) (BlockStorage, error) {
+func NewBlockStorage(data *bytes.Reader) (BlockStorage, error) {
+	// Version and bitsPerBlock in a single byte
 	storageVersionByte := readByte(data)
 
+	// The version (0 or 1)
 	storageVersionFlag := int((storageVersionByte >> 1) & 1)
 
+	// Number of bits used for one block state index
 	bitsPerBlock := int(storageVersionByte >> 1)
 
-	// Number of blocks per 32-bit integer.
+	// Number of blocks per 32-bit integer
 	blocksPerWord := math.Floor(float64(32 / bitsPerBlock))
 
-	// Block states as indices into the palette, packed into 32-bit little-endian unsigned integers.
+	// Total count of block state indices
 	indexCount := int(math.Ceil(4096/blocksPerWord)) * int(blocksPerWord)
 
-	if 32%int(blocksPerWord) != 0 { // TODO: This probably doesn't mean things are broken:
+	if 32%int(blocksPerWord) != 0 { // TODO: Handle all blocksPerword amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
 		// "For the blocksPerWord values which are not factors of 32, each 32-bit integer contains two (high) bits of padding. Block state indices are not split across words."
 		// Probably need to handle: "Block state indices are *not split across words*"
 		log.Fatalf("blocksPerWord is not a factor of 32")
 	}
 
-	fmt.Println("storageVersionFlag:", storageVersionFlag)
-	fmt.Println("bitsPerBlock:", bitsPerBlock)
-	fmt.Println("blocksPerWord:", blocksPerWord)
-	fmt.Println("indexCount:", int(math.Ceil(4096/blocksPerWord)))
+	if bitsPerBlock != 4 { // TODO: Handle all bitsPerBlock amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
+		log.Fatal("bitsPerBlock is not 4")
+	}
 
 	dataBits := NewBitReader(data)
 
@@ -150,36 +123,62 @@ func NewBlock(data *bytes.Reader) (BlockStorage, error) {
 			return BlockStorage{}, nil
 		}
 
-		idx := int(boolsToBytes(idxBits)[0] >> 4)
+		idx := int(boolsToBytes(idxBits)[0] >> 4) // TODO: see if statement above, this is specific to a bitsPerBlock value of 4. Because we are converting 4 bits to a byte, we shift it 4 bits to the right to get the correct value.
 		indices[i] = idx
-
-		//set[fmt.Sprintf("%d", idx)] = 0 //DEBUG
 	}
 
 	if dataBits.Offset() != 8 { // TODO: This does not necessarily mean things are broken
 		log.Fatalf("finished reading indices part way through a byte")
 	}
 
-	//	for k, _ := range set { //DEBUG
-	//		fmt.Printf(k)
-	//	}
-
+	// Number of blocks states in the palette
 	paletteSize := binary.LittleEndian.Uint32(readBytes(data, 4))
-	fmt.Println("paletteSize:", paletteSize)
 
-	for i := 0; i < int(paletteSize)/2; i++ {
-		readByte(data)
+	// Read all the remaining bytes. This is the NBT block states.
+	remaining, err := ioutil.ReadAll(data)
+	if err != nil {
+		return BlockStorage{}, fmt.Errorf("reading remaining bytes: %s", err)
 	}
 
-	fmt.Println("Size:", data.Size())
-	fmt.Println("Len:", data.Len())
+	// Convert the BNT to JSON then unmarshal the JSON.
+	jsn, err := nbt2json.Nbt2Json(remaining, "#")
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	return BlockStorage{
+	var nbtJsonData nbt2json.NbtJson
+	err = json.Unmarshal(jsn, &nbtJsonData)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	blockStates := make([]BlockState, paletteSize)
+
+	// Unmarshal the json states
+	for i, j := range nbtJsonData.Nbt {
+		var state BlockState
+
+		err := json.Unmarshal(*j, &state)
+		if err != nil {
+			return BlockStorage{}, fmt.Errorf("unmarshalling block state tag: %s", err)
+		}
+
+		blockStates[i] = state
+	}
+
+	blockStorage := BlockStorage{
 		version:           storageVersionFlag,
-		bitsPerBlock:      bitsPerBlock,
 		blockStateIndices: indices,
 		paletteSize:       paletteSize,
-	}, nil
+		blockStates:       blockStates,
+	}
+
+	for i := range blockStorage.blockStates {
+		fmt.Println(blockStorage.StateName(i))
+	}
+
+	return blockStorage, nil
 }
 
 // func reads count byte from reader and returns, or exits the program if reader.Read() returns an error.
