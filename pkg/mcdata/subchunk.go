@@ -18,8 +18,13 @@ func NewBitReader(reader *bytes.Reader) BitReader {
 	return BitReader{reader: reader}
 }
 
+func (r *BitReader) Offset() int {
+	return int(r.offset)
+}
+
 func (r *BitReader) ReadBits(count int) ([]bool, error) {
 	b := make([]bool, count)
+
 	for i := 0; i < count; i++ {
 		bit, err := r.ReadBit()
 		if err != nil {
@@ -80,12 +85,17 @@ func NewSubChunk(data []byte) (SubChunk, error) {
 	fmt.Println("version:", version)
 
 	switch version {
+	case 1:
+		log.Fatal("HANDLE SUBCHUNK TYPE 1")
+		return SubChunk{}, nil
 	case 8:
+		// Number of BlockStorage objects to read
 		storageCount := int(readBytes(r, 1)[0])
 		fmt.Println("storageCount:", storageCount)
 
 		blocks := make([]BlockStorage, storageCount)
 
+		// Read BlockStorage data and create objects
 		for i := 0; i < storageCount; i++ {
 			b, err := NewBlock(r)
 			if err != nil {
@@ -112,42 +122,57 @@ func NewBlock(data *bytes.Reader) (BlockStorage, error) {
 
 	bitsPerBlock := int(storageVersionByte >> 1)
 
+	// Number of blocks per 32-bit integer.
 	blocksPerWord := math.Floor(float64(32 / bitsPerBlock))
-	indexCount := int(math.Ceil(4096 / blocksPerWord))
+
+	// Block states as indices into the palette, packed into 32-bit little-endian unsigned integers.
+	indexCount := int(math.Ceil(4096/blocksPerWord)) * int(blocksPerWord)
+
+	if 32%int(blocksPerWord) != 0 { // TODO: This probably doesn't mean things are broken:
+		// "For the blocksPerWord values which are not factors of 32, each 32-bit integer contains two (high) bits of padding. Block state indices are not split across words."
+		// Probably need to handle: "Block state indices are *not split across words*"
+		log.Fatalf("blocksPerWord is not a factor of 32")
+	}
 
 	fmt.Println("storageVersionFlag:", storageVersionFlag)
 	fmt.Println("bitsPerBlock:", bitsPerBlock)
 	fmt.Println("blocksPerWord:", blocksPerWord)
-	fmt.Println("indexCount:", indexCount)
+	fmt.Println("indexCount:", int(math.Ceil(4096/blocksPerWord)))
 
-	//dataBits := NewBitReader(data)
+	dataBits := NewBitReader(data)
 
-	indices := make([]uint32, indexCount)
+	indices := make([]int, indexCount)
+	//set := make(map[string]int) //DEBUG
 	for i := 0; i < indexCount; i++ {
-		/*idxBits, err := dataBits.ReadBits(34)
+		// Read one block
+		idxBits, err := dataBits.ReadBits(bitsPerBlock)
 		if err != nil {
 			return BlockStorage{}, nil
-		}*/
+		}
 
-		indices[i] = binary.LittleEndian.Uint32(
-			//boolsToBytes(idxBits),
-			readBytes(data, 4),
-		)
+		idx := int(boolsToBytes(idxBits)[0] >> 4)
+		indices[i] = idx
+
+		//set[fmt.Sprintf("%d", idx)] = 0 //DEBUG
 	}
 
-	paletteSize := binary.LittleEndian.Uint32(
-		readBytes(data, 4),
-	)
+	if dataBits.Offset() != 8 { // TODO: This does not necessarily mean things are broken
+		log.Fatalf("finished reading indices part way through a byte")
+	}
+
+	//	for k, _ := range set { //DEBUG
+	//		fmt.Printf(k)
+	//	}
+
+	paletteSize := binary.LittleEndian.Uint32(readBytes(data, 4))
 	fmt.Println("paletteSize:", paletteSize)
 
 	for i := 0; i < int(paletteSize)/2; i++ {
 		readByte(data)
 	}
 
-	readByte(data)
 	fmt.Println("Size:", data.Size())
 	fmt.Println("Len:", data.Len())
-	fmt.Printf("%+v\n", data)
 
 	return BlockStorage{
 		version:           storageVersionFlag,
