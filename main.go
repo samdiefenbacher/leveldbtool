@@ -6,8 +6,6 @@ import (
 
 	"github.com/danhale-git/mine/pkg/mcdata"
 
-	"github.com/danhale-git/mine/pkg/convert"
-
 	"github.com/midnightfreddie/McpeTool/world"
 	//"github.com/midnightfreddie/nbt2json"
 )
@@ -33,27 +31,22 @@ func main() {
 	}
 
 	// Determine key from XYZ coordinates
-	x, y, z := 1, 40, 1
+	x, _, z := 1, 40, 1
 
-	key := convert.CoordsToSubChunkKey(x, y, z, 0)
+	wld := mcdata.World{World: &w}
 
-	log.Printf("CoordsToSubChunkKey: %x", key)
+	c, err := wld.Chunk(x, z)
 
-	// Get data at key
-	b, err := w.Get(key)
-
-	if err != nil {
-		log.Println(err)
-	}
-
-	// Read data into SubChunk struct
-	subChunk, err := mcdata.NewSubChunk(b)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Print stuff about chunk
-	PrintBlockStorage(subChunk.BlockStorage[0])
+	for _, sc := range c.SubChunks {
+		for _, bs := range sc.BlockStorage {
+			PrintBlockStorage(bs)
+			fmt.Println("===============")
+		}
+	}
 
 	err = w.Close()
 

@@ -12,7 +12,8 @@ import (
 	"github.com/midnightfreddie/nbt2json"
 )
 
-type SubChunk struct {
+// subChunk is block data for a 16x16x16 area of the map.
+type subChunk struct {
 	data         []byte         // The raw sub chunk data
 	Version      int            // The version of the data format (may be 1 or 8)
 	StorageCount int            // Count of Block storage records (unused if version is set to 1)
@@ -45,6 +46,24 @@ func newTag(data interface{}) Tag {
 		Name:    d["name"].(string),
 		Value:   d["value"],
 	}
+}
+
+// Columns a slice of slices where each sub slice is a column covering the extents of the Y axis within this sub chunk.
+func (b *BlockStorage) Columns() ([][]int, error) {
+	blockSize := 16
+
+	for y := 0; y < blockSize; y++ {
+
+		for z := 0; z < blockSize; z++ {
+
+			for x := 0; x < blockSize; x++ {
+
+			}
+		}
+	}
+	// Blocks are stored column-by-column (incrementing Y first, incrementing Z at the end of the column, incrementing
+	// X at the end of the cross-section).
+	return nil, nil
 }
 
 // BlockName returns the name of the block associated with the block state
@@ -87,7 +106,7 @@ func (b *BlockStorage) tag(name string, index int) (map[string]interface{}, bool
 	return nil, false
 }
 
-func NewSubChunk(data []byte) (SubChunk, error) {
+func NewSubChunk(data []byte) (subChunk, error) {
 	r := bytes.NewReader(data)
 
 	version := int(readByte(r))
@@ -95,7 +114,7 @@ func NewSubChunk(data []byte) (SubChunk, error) {
 	switch version {
 	case 1:
 		log.Fatal("HANDLE SUBCHUNK TYPE 1")
-		return SubChunk{}, nil
+		return subChunk{}, nil
 	case 8:
 		// Number of BlockStorage objects to read
 		storageCount := int(readBytes(r, 1)[0])
@@ -106,13 +125,13 @@ func NewSubChunk(data []byte) (SubChunk, error) {
 		for i := 0; i < storageCount; i++ {
 			b, err := readBlockStorage(r)
 			if err != nil {
-				return SubChunk{}, fmt.Errorf("creating new block: %s", err)
+				return subChunk{}, fmt.Errorf("creating new block: %s", err)
 			}
 
 			blocks[i] = b
 		}
 
-		return SubChunk{
+		return subChunk{
 			data:         data,
 			Version:      version,
 			BlockStorage: blocks,
@@ -141,11 +160,13 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 	if 32%int(blocksPerWord) != 0 { // TODO: Handle all blocksPerword amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
 		// "For the blocksPerWord values which are not factors of 32, each 32-bit integer contains two (high) bits of padding. Block state indices are not split across words."
 		// Probably need to handle: "Block state indices are *not split across words*"
-		log.Fatalf("blocksPerWord value of %f is not a factor of 32", blocksPerWord)
+		// log.Fatalf("blocksPerWord value of %f is not a factor of 32", blocksPerWord)
+		return BlockStorage{}, fmt.Errorf("blocksPerWord value of %f is not a factor of 32", blocksPerWord)
 	}
 
 	if bitsPerBlock != 4 { // TODO: Handle all bitsPerBlock amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
-		log.Fatal("bitsPerBlock is not 4")
+		// log.Fatal("bitsPerBlock is not 4")
+		return BlockStorage{}, fmt.Errorf("bitsPerBlock is not 4")
 	}
 
 	dataBits := NewBitReader(data)
