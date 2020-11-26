@@ -1,21 +1,28 @@
 package mcdata
 
-import "bytes"
+import (
+	"bytes"
+)
 
+const bitsPerByte = 8
+
+// BitReader ready a bytes.Reader bit by bit.
 type BitReader struct {
-	reader *bytes.Reader
-	byte   byte
-	offset byte
+	reader *bytes.Reader // Next bytes
+	byte   byte          // Current byte
+	offset byte          // Offset from the previous byte
 }
 
 func NewBitReader(reader *bytes.Reader) BitReader {
 	return BitReader{reader: reader}
 }
 
+// Offset returns the current offset from the previous byte, in bits.
 func (r *BitReader) Offset() int {
 	return int(r.offset)
 }
 
+// ReadBits reads the next bits from stored bytes and returns them.
 func (r *BitReader) ReadBits(count int) ([]bool, error) {
 	b := make([]bool, count)
 
@@ -31,8 +38,9 @@ func (r *BitReader) ReadBits(count int) ([]bool, error) {
 	return b, nil
 }
 
+// ReadBit reads the next bit from stored bytes and returns it.
 func (r *BitReader) ReadBit() (bool, error) {
-	if r.offset == 8 {
+	if r.offset == bitsPerByte {
 		r.offset = 0
 	}
 
