@@ -185,26 +185,15 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 		return BlockStorage{}, fmt.Errorf("reading remaining bytes: %s", err)
 	}
 
-	// Convert the BNT to JSON then unmarshal the JSON.
-	jsn, err := nbt2json.Nbt2Json(remaining, "#")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Unmarshal JSON NBT data
-	var nbtJSON struct {
-		Nbt []interface{} `json:"nbt"`
-	}
-
-	err = json.Unmarshal(jsn, &nbtJSON)
+	stateData, err := readNBTData(remaining)
 
 	if err != nil {
-		return BlockStorage{}, fmt.Errorf("unmarshaling nbt json data: %s", err)
+		return BlockStorage{}, err
 	}
 
 	// Construct tags from empty interfaces
 	blockStates := make([]Tag, paletteSize)
-	for i, j := range nbtJSON.Nbt {
+	for i, j := range stateData {
 		blockStates[i] = newTag(j)
 	}
 
@@ -217,39 +206,23 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 	return blockStorage, nil
 }
 
-// func reads count byte from reader and returns, or exits the program if reader.Read() returns an error.
-func readBytes(reader *bytes.Reader, count int) []byte {
-	b := make([]byte, count)
-	_, err := reader.Read(b)
+func readNBTData(data []byte) ([]interface{}, error) {
+	// Convert the BNT to JSON then unmarshal the JSON.
+	jsn, err := nbt2json.Nbt2Json(data, "#")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Unmarshal JSON NBT data
+	var nbtJSON struct {
+		NBT []interface{} `json:"nbt"`
+	}
+
+	err = json.Unmarshal(jsn, &nbtJSON)
 
 	if err != nil {
-		log.Fatalf("attempting to read bytes for subchunk: %s", err)
+		return nil, err
 	}
 
-	return b
-}
-func readByte(reader *bytes.Reader) byte {
-	return readBytes(reader, 1)[0]
-}
-
-func boolsToBytes(t []bool) []byte {
-	b := make([]byte, (len(t)+7)/8)
-	for i, x := range t {
-		if x {
-			b[i/8] |= 0x80 >> uint(i%8)
-		}
-	}
-	return b
-}
-
-func bytesToBools(b []byte) []bool {
-	t := make([]bool, 8*len(b))
-	for i, x := range b {
-		for j := 0; j < 8; j++ {
-			if (x<<uint(j))&0x80 == 0x80 {
-				t[8*i+j] = true
-			}
-		}
-	}
-	return t
+	return nbtJSON.NBT, nil
 }
