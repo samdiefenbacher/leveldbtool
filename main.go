@@ -41,12 +41,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	for _, sc := range c.SubChunks {
-		for _, bs := range sc.BlockStorage {
-			PrintBlockStorage(bs)
-			fmt.Println("===============")
-		}
-	}
+	PrintBlockStorage(c)
 
 	err = w.Close()
 
@@ -55,36 +50,33 @@ func main() {
 	}
 }
 
-func PrintBlockStorage(blocks mcdata.BlockStorage) {
+func PrintBlockStorage(chunk *mcdata.Chunk) {
 	uniqueCounts := make(map[string]int)
 
-	for _, idx := range blocks.BlockStateIndices {
-		description := ""
+	for _, sc := range chunk.SubChunks {
+		for _, bs := range sc.BlockStorage {
+			for _, idx := range bs.BlockStateIndices {
+				block := bs.State(idx)
 
-		name, err := blocks.BlockName(idx)
-		description += name
+				description := ""
 
-		if err != nil {
-			log.Fatal(err)
-		}
+				description += block.Name
 
-		states, err := blocks.BlockStateTags(idx)
-		if err != nil {
-			log.Fatal(err)
-		}
+				for k, v := range block.States {
+					description += fmt.Sprintf(" - %s: %+v", k, v)
+				}
 
-		for _, state := range states {
-			description += fmt.Sprintf(" - %v %v", state.Name, state.Value)
-		}
-
-		if _, ok := uniqueCounts[description]; !ok {
-			uniqueCounts[description] = 1
-		} else {
-			uniqueCounts[description]++
+				if _, ok := uniqueCounts[description]; !ok {
+					uniqueCounts[description] = 1
+				} else {
+					uniqueCounts[description]++
+				}
+			}
 		}
 	}
 
 	total := 0
+
 	for k, v := range uniqueCounts {
 		fmt.Println(k, v)
 		total += v

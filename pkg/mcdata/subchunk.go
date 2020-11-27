@@ -21,18 +21,17 @@ type subChunk struct {
 	// (or 1 if version is set to 1).
 }
 
+// BlockStorage has a 'palette' (slice) of varying size containing block states and a slice of indices referring to the
+// state palette.
 type BlockStorage struct {
 	version int
 
-	BlockStateIndices []int // The block states as indices into the palette, packed into
-	// ceil(4096 / blocksPerWord) 32-bit little-endian unsigned integers.
+	BlockStateIndices []int // The block states as indices for statePalette.
 
-	paletteSize uint32 // A 32-bit little-endian integer specifying the number of block states in the
-	// palette.
-
-	blockStates []Tag // The specified number of block states in little-endian NBT format, concatenated.
+	statePalette []Tag // Block states as key value data, each describing a block type and current state combination.
 }
 
+// Tag is JSON like data decoded from NBT blocks.
 type Tag struct {
 	TagType int
 	Name    string
@@ -41,6 +40,7 @@ type Tag struct {
 
 func newTag(data interface{}) Tag {
 	d := data.(map[string]interface{})
+
 	return Tag{
 		TagType: int(d["tagType"].(float64)),
 		Name:    d["name"].(string),
@@ -48,65 +48,54 @@ func newTag(data interface{}) Tag {
 	}
 }
 
-// Columns a slice of slices where each sub slice is a column covering the extents of the Y axis within this sub chunk.
-func (b *BlockStorage) Columns() ([][]int, error) {
-	blockSize := 16
-
-	for y := 0; y < blockSize; y++ {
-
-		for z := 0; z < blockSize; z++ {
-
-			for x := 0; x < blockSize; x++ {
-
-			}
-		}
-	}
-	// Blocks are stored column-by-column (incrementing Y first, incrementing Z at the end of the column, incrementing
-	// X at the end of the cross-section).
-	return nil, nil
+// Get returns a copy of the block state from the palette using the state index at the given index.
+//
+// Blocks are stored column-by-column: increment Y first, Z at the end of the column and X at the end of the
+// cross-section.
+//
+func (b *BlockStorage) Get(index int) Block {
+	return b.State(b.BlockStateIndices[index])
 }
 
-// BlockName returns the name of the block associated with the block state
-func (b *BlockStorage) BlockName(index int) (string, error) {
-	if tag, ok := b.tag("name", index); ok {
-		return tag["value"].(string), nil
-	}
+// State returns the block state at the given index in the block palette. To get the state for a specific block, use
+// BlockStorage.Get.
+func (b *BlockStorage) State(index int) Block {
+	stateData := b.statePalette[index]
 
-	return "", fmt.Errorf("reading block name: no tag found with name 'name'")
-}
+	var name string
 
-// BlockState returns all state tags associated with the block state
-func (b *BlockStorage) BlockStateTags(index int) ([]Tag, error) {
-	s, ok := b.tag("states", index)
+	var version int
 
-	if !ok {
-		return nil, fmt.Errorf("block has no 'states' tag")
-	}
+	states := make(map[string]interface{})
 
-	states := s["value"].([]interface{})
-	stateTags := make([]Tag, len(states))
-
-	for i, s := range states {
-		stateTags[i] = newTag(s)
-	}
-
-	return stateTags, nil
-}
-
-func (b *BlockStorage) tag(name string, index int) (map[string]interface{}, bool) {
-	state := b.blockStates[index]
-
-	for _, t := range state.Value.([]interface{}) {
+	for _, t := range stateData.Value.([]interface{}) {
 		tag := t.(map[string]interface{})
-		if tag["name"] == name {
-			return tag, true
+
+		switch tag["name"] {
+		case "name":
+			name = tag["value"].(string)
+		case "version":
+			version = int(tag["value"].(float64))
+		case "states":
+			for _, s := range tag["value"].([]interface{}) {
+				st := s.(map[string]interface{})
+				states[st["name"].(string)] = st["value"]
+			}
+		default:
+			panic(fmt.Sprintf("unhandled state tag: %s", tag["name"].(string)))
 		}
 	}
 
-	return nil, false
+	block := Block{
+		Name:    name,
+		States:  states,
+		Version: version,
+	}
+
+	return block
 }
 
-func NewSubChunk(data []byte) (subChunk, error) {
+func newSubChunk(data []byte) (subChunk, error) {
 	r := bytes.NewReader(data)
 
 	version := int(readByte(r))
@@ -118,10 +107,9 @@ func NewSubChunk(data []byte) (subChunk, error) {
 	case 8:
 		// Number of BlockStorage objects to read
 		storageCount := int(readBytes(r, 1)[0])
-
 		blocks := make([]BlockStorage, storageCount)
 
-		// Read BlockStorage data and create objects
+		// Read BlockStorage data
 		for i := 0; i < storageCount; i++ {
 			b, err := readBlockStorage(r)
 			if err != nil {
@@ -204,10 +192,11 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 	}
 
 	// Unmarshal JSON NBT data
-	var nbtJsonData struct {
+	var nbtJSON struct {
 		Nbt []interface{} `json:"nbt"`
 	}
-	err = json.Unmarshal(jsn, &nbtJsonData)
+
+	err = json.Unmarshal(jsn, &nbtJSON)
 
 	if err != nil {
 		return BlockStorage{}, fmt.Errorf("unmarshaling nbt json data: %s", err)
@@ -215,15 +204,14 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 
 	// Construct tags from empty interfaces
 	blockStates := make([]Tag, paletteSize)
-	for i, j := range nbtJsonData.Nbt {
+	for i, j := range nbtJSON.Nbt {
 		blockStates[i] = newTag(j)
 	}
 
 	blockStorage := BlockStorage{
 		version:           storageVersionFlag,
 		BlockStateIndices: indices,
-		paletteSize:       paletteSize,
-		blockStates:       blockStates,
+		statePalette:      blockStates,
 	}
 
 	return blockStorage, nil

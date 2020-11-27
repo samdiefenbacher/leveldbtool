@@ -2,7 +2,6 @@ package mcdata
 
 import (
 	"encoding/binary"
-	"fmt"
 	"log"
 
 	"github.com/midnightfreddie/McpeTool/world"
@@ -23,7 +22,7 @@ func (w *World) subChunk(x, y, z int) (subChunk, error) {
 	}
 
 	// Read data into subChunk struct
-	return NewSubChunk(b)
+	return newSubChunk(b)
 }
 
 // Chunk returns the terrain data for the 16x256x16 chunk containing the given x and z block coordinates.
@@ -32,7 +31,7 @@ func (w *World) Chunk(x, z int) (*Chunk, error) {
 		SubChunks: make([]subChunk, worldHeight/subChunkSize),
 	}
 
-	for y := 0; y < /*len(c.SubChunks)*/ 3; y++ { // TODO: lots of chunks are breaking
+	/*for y := 0; y < len(c.SubChunks); y++ { // TODO: lots of chunks are breaking
 		sc, err := w.subChunk(x, y*subChunkSize, z)
 		if err != nil {
 			fmt.Printf("Skipping chunk %d because error: %s\n", y, err)
@@ -40,7 +39,14 @@ func (w *World) Chunk(x, z int) (*Chunk, error) {
 		}
 
 		c.SubChunks[y] = sc
+	}*/
+
+	sc, err := w.subChunk(1, 40, 1)
+	if err != nil {
+		panic(err)
 	}
+
+	c.SubChunks[0] = sc
 
 	return &c, nil
 }
