@@ -12,6 +12,19 @@ import (
 	"github.com/midnightfreddie/nbt2json"
 )
 
+// https://minecraft.gamepedia.com/Bedrock_Edition_level_format#SubChunkPrefix_record_.281.0_and_1.2.13_formats.29
+var allowedIndexSizes = []int{1, 2, 3, 4, 5, 6, 8, 16}
+
+func blockIndexSizeAllowed(s int) bool {
+	for _, allowed := range allowedIndexSizes {
+		if s == allowed {
+			return true
+		}
+	}
+
+	return false
+}
+
 // BlockStorage has a 'palette' (slice) of varying size containing block states and a slice of indices referring to the
 // state palette.
 type BlockStorage struct {
@@ -52,6 +65,10 @@ func (b *BlockStorage) Get(index int) Block {
 	return b.State(b.BlockStateIndices[index])
 }
 
+func (b *BlockStorage) StateCOUNT() int {
+	return len(b.statePalette)
+}
+
 // State returns the block state at the given index in the block palette. To get the state for a specific block, use
 // BlockStorage.Get.
 func (b *BlockStorage) State(index int) Block {
@@ -90,96 +107,9 @@ func (b *BlockStorage) State(index int) Block {
 	return block
 }
 
-func readHeaderByte(data *bytes.Reader) (version, bitsPerBlock int, err error) {
-	// Version and bitsPerBlock in a single byte
-	storageVersionByte := readByte(data)
-
-	// The version (0 or 1)
-	version = int((storageVersionByte >> 1) & 1)
-
-	// Number of bits used for one block state index
-	bitsPerBlock, err = int(storageVersionByte>>1), nil
-
-	return
-}
-
-func readIndices(data *bytes.Reader, bitsPerBlock int) ([]int, error) {
-	// Number of blocks per 32-bit integer
-	blocksPerWord := int(math.Floor(float64(32 / bitsPerBlock)))
-
-	fmt.Println("blocksPerWord: ", blocksPerWord)
-
-	remainderPerWord := 32 - (blocksPerWord * bitsPerBlock)
-
-	fmt.Println("remainderPerWord: ", remainderPerWord)
-
-	// Total count of block state indices
-	indexCount := 4096
-
-	/*//	//	//	NEW
-
-	dataBits := NewBitReader(data)
-
-	indices := make([]int, indexCount) // is index count correct still ? ?
-
-	wordCount := int(math.Ceil(4096 / float64(blocksPerWord)))
-
-	i := 0
-
-	for w := 0; w < wordCount; w++ {
-		for b := 0; b < blocksPerWord; b++ {
-			// Read one block
-			idxBits, err := dataBits.ReadBits(bitsPerBlock)
-			if err != nil {
-				return nil, nil
-			}
-
-			// Index of this block's state in the palette
-			idx := int(boolsToBytes(idxBits)[0] >> 4) // TODO: see if statement above, this is specific to a bitsPerBlock value of 4. Because we are converting 4 bits to a byte, we shift it 4 bits to the right to get the correct value.
-			indices[i] = idx
-			i++
-		}
-	}*/
-
-	//	//	//	//	OLD
-
-	if 32%int(blocksPerWord) != 0 { // TODO: Handle all blocksPerword amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
-		// "For the blocksPerWord values which are not factors of 32, each 32-bit integer contains two (high) bits of padding. Block state indices are not split across words."
-		// Probably need to handle: "Block state indices are *not split across words*"
-		// log.Fatalf("blocksPerWord value of %f is not a factor of 32", blocksPerWord)
-		return nil, fmt.Errorf("blocksPerWord value of %f is not a factor of 32", blocksPerWord)
-	}
-
-	if bitsPerBlock != 4 { // TODO: Handle all bitsPerBlock amounts https://minecraft.gamepedia.com/Bedrock_Edition_level_format
-		// log.Fatal("bitsPerBlock is not 4")
-		return nil, fmt.Errorf("bitsPerBlock is not 4")
-	}
-
-	dataBits := NewBitReader(data)
-
-	indices := make([]int, indexCount)
-	for i := 0; i < indexCount; i++ {
-		// Read one block
-		idxBits, err := dataBits.ReadBits(bitsPerBlock)
-		if err != nil {
-			return nil, nil
-		}
-
-		// Index of this block's state in the palette
-		idx := int(boolsToBytes(idxBits)[0] >> 4) // TODO: see if statement above, this is specific to a bitsPerBlock value of 4. Because we are converting 4 bits to a byte, we shift it 4 bits to the right to get the correct value.
-		indices[i] = idx
-	}
-
-	//	//	//
-
-	if dataBits.Offset() != 8 { // TODO: This does not necessarily mean things are broken
-		log.Fatalf("finished reading indices of size %d bits part way through a byte", bitsPerBlock)
-	}
-
-	return indices, nil
-}
-
 func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
+	fmt.Println("original data length:", data.Len())
+
 	storageVersionFlag, bitsPerBlock, err := readHeaderByte(data)
 	if err != nil {
 		return BlockStorage{}, err
@@ -191,6 +121,10 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 
 	fmt.Println("bitsPerBlock: ", bitsPerBlock)
 
+	if !blockIndexSizeAllowed(bitsPerBlock) {
+		return BlockStorage{}, fmt.Errorf("illegal block index bit array length of %d", bitsPerBlock)
+	}
+
 	indices, err := readIndices(data, bitsPerBlock)
 	if err != nil {
 		return BlockStorage{}, err
@@ -198,6 +132,8 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 
 	// Number of blocks states in the palette
 	paletteSize := binary.LittleEndian.Uint32(readBytes(data, 4))
+
+	fmt.Println("paletteSize:", paletteSize)
 
 	// Read all the remaining bytes. This is the NBT block states.
 	remaining, err := ioutil.ReadAll(data)
@@ -223,11 +159,109 @@ func readBlockStorage(data *bytes.Reader) (BlockStorage, error) {
 		statePalette:      blockStates,
 	}
 
+	//for i := 0; i < int(paletteSize); i++ {
+	//	fmt.Println(i, blockStorage.State(i).Name, blockStorage.State(i).States)
+	//}
+
 	return blockStorage, nil
 }
 
-func readIndexBlock() {
+func readHeaderByte(data *bytes.Reader) (version, bitsPerBlock int, err error) {
+	// Version and bitsPerBlock in a single byte
+	storageVersionByte := readByte(data)
 
+	// The version (0 or 1)
+	version = int((storageVersionByte >> 1) & 1)
+
+	// Number of bits used for one block state index
+	bitsPerBlock, err = int(storageVersionByte>>1), nil
+
+	return
+}
+
+func readIndices(data *bytes.Reader, bitsPerBlock int) ([]int, error) {
+	fmt.Println("data length: ", data.Len())
+	// Number of blocks per 32-bit integer
+	blocksPerWord := int(math.Floor(float64(32 / bitsPerBlock)))
+
+	fmt.Println("blocksPerWord: ", blocksPerWord)
+
+	remainderPerWord := 32 - (blocksPerWord * bitsPerBlock)
+
+	fmt.Println("remainderPerWord: ", remainderPerWord)
+
+	wordCount := int(math.Ceil(4096 / float64(blocksPerWord)))
+	fmt.Println("wordCount: ", wordCount)
+
+	fmt.Println("blockCount:", blocksPerWord*wordCount)
+
+	indices := make([]int, 4096) // is index count correct still ? ?
+
+	unique := make(map[int]int)
+
+	i := 0
+OUTER:
+	for w := 0; w < wordCount; w++ {
+		// Read a 32 bit little endian int
+		word := binary.LittleEndian.Uint32(readBytes(data, 4))
+		wordBytes := make([]byte, 4)
+		binary.BigEndian.PutUint32(wordBytes, word)
+
+		//fmt.Printf("%b\n", wordBytes)
+
+		wordBits := NewBitReader(bytes.NewReader(wordBytes))
+
+		_, err := wordBits.ReadBits(remainderPerWord)
+		if err != nil {
+			return nil, err
+		}
+
+		for b := 0; b < blocksPerWord; b++ {
+			// Read one block
+			idxBits, err := wordBits.ReadBits(bitsPerBlock)
+			if err != nil {
+				return nil, nil
+			}
+
+			//debugString := ""
+
+			idxBytes := boolsToBytes(idxBits)
+			if len(idxBytes) < 2 {
+				idxBytes = append(idxBytes, byte(0))
+			}
+
+			shift := 16 - bitsPerBlock
+
+			idx16 := binary.BigEndian.Uint16(idxBytes) >> shift
+
+			idx := int(idx16)
+
+			/*for _, bit := range idxBits {
+				if bit {
+					debugString += fmt.Sprint(1)
+				} else {
+					debugString += fmt.Sprint(0)
+				}
+			}
+
+			debugString += fmt.Sprintf(" - %b >> %d: %b - %b: %d", binary.BigEndian.Uint16(idxBytes), shift, idx16, idx, idx)
+			fmt.Println(debugString)*/
+
+			indices[i] = idx
+			unique[idx] = 0
+			i++
+			if i == 4096 {
+				break OUTER
+			}
+		}
+	}
+
+	fmt.Println("total block indices:", len(indices))
+	fmt.Println("final data length:", data.Len())
+
+	fmt.Println(unique)
+
+	return indices, nil
 }
 
 func readNBTData(data []byte) ([]interface{}, error) {

@@ -32,7 +32,7 @@ func (r *BitReader) ReadBits(count int) ([]bool, error) {
 			return b, err
 		}
 
-		b[i] = bit
+		b[(count-1)-i] = bit
 	}
 
 	return b, nil

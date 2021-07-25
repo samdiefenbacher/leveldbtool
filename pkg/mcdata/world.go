@@ -21,8 +21,8 @@ func (w *World) Chunk(x, z int) (*Chunk, error) {
 	}
 
 	// TODO: lots of chunks are breaking
-	for y := 0; y < /*len(c.SubChunks)*/ 2; y++ {
-		fmt.Println("getting chunk at origin:", c.X, y*subChunkSize, c.Z)
+	for y := 0; y < /*len(c.SubChunks)*/ 1; y++ {
+		fmt.Println("getting chunk at origin:", c.X, y*subChunkSize, c.Z, "(", x, y, z, ")")
 		sc, err := w.subChunk(x, y*subChunkSize, z)
 
 		if err != nil {
@@ -54,5 +54,5 @@ func (w *World) subChunk(x, y, z int) (subChunk, error) {
 	}
 
 	// Read data into subChunk struct
-	return newSubChunk(b)
+	return newSubChunk(b, x, y, z)
 }

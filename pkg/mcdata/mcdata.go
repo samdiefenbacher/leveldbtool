@@ -3,7 +3,7 @@ package mcdata
 import (
 	"bytes"
 	"encoding/binary"
-	"log"
+	"fmt"
 )
 
 const (
@@ -19,7 +19,7 @@ func readBytes(reader *bytes.Reader, count int) []byte {
 	_, err := reader.Read(b)
 
 	if err != nil {
-		log.Fatalf("attempting to read bytes for subchunk: %s", err)
+		panic(fmt.Sprintf("attempting to read bytes for subchunk: %s", err))
 	}
 
 	return b

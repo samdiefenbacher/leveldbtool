@@ -8,6 +8,7 @@ import (
 
 // subChunk is block data for a 16x16x16 area of the map.
 type subChunk struct {
+	X, Y, Z      int
 	data         []byte         // The raw sub chunk data
 	Version      int            // The version of the data format (may be 1 or 8)
 	StorageCount int            // Count of Block storage records (unused if version is set to 1)
@@ -15,7 +16,7 @@ type subChunk struct {
 	// (or 1 if version is set to 1).
 }
 
-func newSubChunk(data []byte) (subChunk, error) {
+func newSubChunk(data []byte, x, y, z int) (subChunk, error) {
 	r := bytes.NewReader(data)
 
 	version := int(readByte(r))
@@ -40,6 +41,9 @@ func newSubChunk(data []byte) (subChunk, error) {
 		}
 
 		return subChunk{
+			X:            x,
+			Y:            y,
+			Z:            z,
 			data:         data,
 			Version:      version,
 			BlockStorage: blocks,

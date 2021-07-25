@@ -54,8 +54,17 @@ func PrintBlockStorage(chunk *mcdata.Chunk) {
 	uniqueCounts := make(map[string]int)
 
 	for _, sc := range chunk.SubChunks {
+		if len(sc.BlockStorage) == 0 {
+			continue
+		}
+		fmt.Println("\nPrinting sub chunk at: ", sc.X, sc.Y, sc.Z)
 		for _, bs := range sc.BlockStorage {
 			for _, idx := range bs.BlockStateIndices {
+				if idx >= bs.StateCOUNT() {
+					fmt.Printf("WARNING index %d given for array with length %d\n", idx, bs.StateCOUNT())
+					continue
+				}
+
 				block := bs.State(idx)
 
 				description := ""
