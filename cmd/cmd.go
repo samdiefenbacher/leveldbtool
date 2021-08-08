@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"bytes"
 	"encoding/binary"
-	"fmt"
 	"github.com/danhale-git/mine/util"
 	"github.com/midnightfreddie/McpeTool/world"
 	"github.com/spf13/cobra"
@@ -39,22 +37,14 @@ func Init() error {
 				log.Fatal(err)
 			}
 
-			r := bytes.NewReader(value)
+			util.ParseSubChunk(value)
 
-			var version int8
-			if err := read(r, &version); err != nil {
-				log.Fatal(err)
-			}
-
-			var storageCount int8 = 1
-			if version != 1 {
-				if err := read(r, &storageCount); err != nil {
+			/*	b, err := nbt2json.Nbt2Json(value, "")
+				if err != nil {
 					log.Fatal(err)
 				}
-			}
 
-			fmt.Println("version:", version)
-			fmt.Println("storageCount:", storageCount)
+				fmt.Println(string(b))*/
 		},
 	}
 
