@@ -7,8 +7,6 @@ import (
 	"io"
 	"log"
 	"math"
-
-	"github.com/midnightfreddie/nbt2json"
 )
 
 func read(r io.Reader, data interface{}) error {
@@ -63,12 +61,10 @@ func ParseSubChunk(data []byte) {
 		fmt.Println("blocksPerWord:", blocksPerWord) //DEBUG
 	}
 
-	blockCount := blocksPerWord * (4096 / 32)
-	fmt.Println("blockCount:", blockCount) //DEBUG
-	//blocks := make([]int, blockCount)
-
 	wordCount := int(math.Ceil(4096 / float64(blocksPerWord)))
 	fmt.Println("wordCount:", wordCount) //DEBUG
+
+	indices := make([]int, 0)
 
 	for w := 0; w < wordCount; w++ {
 		word := make([]byte, 4)
@@ -76,17 +72,18 @@ func ParseSubChunk(data []byte) {
 			log.Fatal(err)
 		}
 
-		// TODO: actually read the block indices
-
-		/*wordReader := bytes.NewReader(word)
-
-		for b := 0; b < blocksPerWord; b++ {
-			block := make([]byte, bitsPerBlock)
-
-			index := (w * blocksPerWord) + b
-			blocks[index] = wordReader
-		}*/
+		indices = append(indices, getBlockDataIndices(word, bitsPerBlock)...)
 	}
+
+	/*testMap := make(map[int]bool)
+	for _, i := range indices {
+		testMap[i] = true
+	}
+	for k := range testMap {
+		fmt.Println(k)
+	}*/
+
+	fmt.Println("index count:", len(indices))
 
 	var paletteSize int32
 	if err := read(r, &paletteSize); err != nil {
@@ -94,7 +91,30 @@ func ParseSubChunk(data []byte) {
 	}
 	fmt.Println("paletteSize:", paletteSize) //DEBUG
 
-	remainingBytes, err := io.ReadAll(r)
+	fmt.Println("reader length:", r.Len())
+	fmt.Println("data length:", len(data))
+}
+
+func getBlockDataIndices(word []byte, bitsPerBlock int) []int {
+	indices := make([]int, 0)
+
+	// Might need to use a bit reader here if numbers other than 4 or 8 come up
+	switch bitsPerBlock {
+	case 4:
+		for _, b := range word {
+			first := b >> 4
+			second := (b << 4) >> 4
+			indices = append(indices, int(first), int(second))
+		}
+	default:
+		log.Panicf("unhandled bits per block '%d'", bitsPerBlock)
+	}
+
+	return indices
+}
+
+func printNBTJSON() {
+	/*remainingBytes, err := io.ReadAll(r)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,8 +124,5 @@ func ParseSubChunk(data []byte) {
 		log.Fatal(err)
 	}
 
-	fmt.Println("reader length:", r.Len())
-	fmt.Println("data length:", len(data))
-
-	fmt.Println(string(j))
+	fmt.Println(string(j))*/
 }
