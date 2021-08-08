@@ -6,6 +6,7 @@ public class McBedrockTool {
         int ChunkX = (int)Math.Floor(x / 16.0);
         int ChunkZ = (int)Math.Floor(z / 16.0);
         byte SubChunkY = (byte) (y / 16);
+        Console.WriteLine(String.Format("Chunk indices:\n X: {0} ({1})\nZ: {2} ({3})\nY: {4} ({5})", ChunkX, x, ChunkZ, z, (y / 16), y));
         string MyKey = HexKey(ChunkX) +
             HexKey(ChunkZ) +
             (Dimension == 0 ? "" : HexKey(Dimension)) +
@@ -26,11 +27,15 @@ public class McBedrockTool {
 }
 "@
 
-Add-Type -TypeDefinition $source
+Add-Type -TypeDefinition $source 
+$env:MCPETOOL_WORLD="C:\Users\danha\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds\XfILYVNgAQA="
 
 # 43 68 -8 : warp wood planks
 $key = [McBedrockTool]::GetKeyByCoords($args[0], $args[1], $args[2])
-mcpetool db get $key
+Write-Host coords: $args[0] $args[1] $args[2]
+Write-Host mcpetool db get $key
+#mcpetool db get $key
+
 
 #PS C:\Users\danha\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds> Write-Host $env:MCPETOOL_WORLD; .\getdata.ps1 "43" "-8" "68" | sls minecraft:
 #C:\Users\danha\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds\ex79YOL+AAA=
