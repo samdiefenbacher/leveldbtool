@@ -2,7 +2,6 @@ package util
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"math"
 )
 
@@ -18,21 +17,23 @@ func SubChunkKey(x, z, dimension int32, y int) ([]byte, error) {
 	z = int32(math.Floor(float64(z) / chunkSize))
 	y = int(math.Floor(float64(y) / chunkSize))
 
-	key := hexKey(x)
-	key += hexKey(z)
+	key := make([]byte, 0)
+
+	key = append(key, littleEndianBytes(x)...)
+	key = append(key, littleEndianBytes(z)...)
 
 	if dimension != 0 {
-		key += hexKey(dimension)
+		key = append(key, littleEndianBytes(dimension)...)
 	}
 
-	key += hex.EncodeToString([]byte{47}) // 47 is the SubChunkPrefix key type tag
-	key += hex.EncodeToString([]byte{byte(y)})
+	key = append(key, []byte{47}...) // 47 is the SubChunkPrefix key type tag
+	key = append(key, byte(y))
 
-	return hex.DecodeString(key)
+	return key, nil
 }
 
-func hexKey(i int32) string {
+func littleEndianBytes(i int32) []byte {
 	b := make([]byte, 4)
 	binary.LittleEndian.PutUint32(b, uint32(i))
-	return hex.EncodeToString(b)
+	return b
 }
