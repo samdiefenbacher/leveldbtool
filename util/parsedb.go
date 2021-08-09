@@ -1,6 +1,6 @@
 package util
 
-import (
+/*import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
@@ -80,14 +80,6 @@ func ParseSubChunk(data []byte) {
 
 		indices, x, y, z := getBlockDataIndices(r, bitsPerBlock)
 
-		/*testMap := make(map[int]bool)
-		for _, i := range indices {
-			testMap[i] = true
-		}
-		for k := range testMap {
-			fmt.Println(k)
-		}*/
-
 		fmt.Println("index count:", len(indices))
 
 		var paletteSize int32
@@ -150,7 +142,6 @@ func getBlockDataIndices(r io.Reader, bitsPerBlock int) (indices, x, y, z []int)
 			log.Fatal(err)
 		}
 
-		// TODO: Also get the block position
 
 		// Might need to use a bit reader here if numbers other than 4 or 8 come up
 		switch bitsPerBlock {
@@ -189,4 +180,4 @@ func printNBTJSON(b []byte) {
 	}
 
 	fmt.Println(string(j))
-}
+}*/

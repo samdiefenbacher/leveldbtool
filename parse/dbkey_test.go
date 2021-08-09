@@ -1,4 +1,4 @@
-package util
+package parse
 
 import (
 	"encoding/hex"

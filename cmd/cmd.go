@@ -1,13 +1,15 @@
 package cmd
 
 import (
-	"encoding/binary"
-	"github.com/danhale-git/mine/util"
-	"github.com/midnightfreddie/McpeTool/world"
-	"github.com/spf13/cobra"
-	"io"
+	"fmt"
 	"log"
 	"strconv"
+
+	"github.com/danhale-git/mine/parse"
+
+	"github.com/danhale-git/mine/terrain"
+	"github.com/midnightfreddie/McpeTool/world"
+	"github.com/spf13/cobra"
 )
 
 const worldPath = `C:\Users\danha\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds\XfILYVNgAQA=`
@@ -22,7 +24,7 @@ func Init() error {
 			}
 			defer w.Close()
 
-			key, err := util.SubChunkKey(
+			key, err := parse.SubChunkKey(
 				int32(intArg(args[0])), // x
 				int32(intArg(args[2])), // z
 				0,                      // dimension
@@ -36,23 +38,27 @@ func Init() error {
 			if err != nil {
 				log.Fatal(err)
 			}
+			sc, err := terrain.NewSubChunk(value)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-			util.ParseSubChunk(value)
-
-			/*	b, err := nbt2json.Nbt2Json(value, "")
-				if err != nil {
-					log.Fatal(err)
+			for i := range sc.BlockStorage {
+				if i > 20 {
+					break
 				}
+				index := sc.BlockStorage[i]
+				x, y, z := blockPosition(i)
 
-				fmt.Println(string(b))*/
+				fmt.Printf("(%d, %d, %d)", x, y, z)
+				fmt.Printf(" - %s\n", sc.StatePalette[index].BlockID())
+			}
+
+			//util.ParseSubChunk(value)
 		},
 	}
 
 	return root.Execute()
-}
-
-func read(r io.Reader, data interface{}) error {
-	return binary.Read(r, binary.ByteOrder(binary.LittleEndian), data)
 }
 
 func intArg(a string) int {
@@ -62,4 +68,13 @@ func intArg(a string) int {
 	}
 
 	return c
+}
+
+// blockPosition gives the x/y/z offset from the a subchunk root based on the current index of the block storage record
+func blockPosition(increment int) (x, y, z int) {
+	x = (increment >> 8) & 0xF
+	y = increment & 0xF
+	z = (increment >> 4) & 0xF
+
+	return
 }
