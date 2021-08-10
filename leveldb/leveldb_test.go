@@ -1,4 +1,4 @@
-package parse
+package leveldb
 
 import (
 	"encoding/hex"
@@ -13,7 +13,7 @@ func TestSubChunkKey(t *testing.T) {
 }
 
 func testSubChunkKey(x, y, z int, want string, t *testing.T) {
-	b, err := SubChunkKey(int32(x), int32(z), 0, y)
+	b, err := SubChunkKey(x, y, z, 0)
 	if err != nil {
 		t.Errorf("unexpected error returned: %s", err)
 	}

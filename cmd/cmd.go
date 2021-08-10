@@ -3,48 +3,48 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"path/filepath"
 	"strconv"
 
-	"github.com/danhale-git/mine/parse"
+	"github.com/midnightfreddie/McpeTool/world"
+
+	"github.com/danhale-git/mine/leveldb"
 
 	"github.com/danhale-git/mine/terrain"
-	"github.com/midnightfreddie/McpeTool/world"
 	"github.com/spf13/cobra"
 )
 
-const worldPath = `C:\Users\danha\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds\XfILYVNgAQA=`
+const worldDirPath = `C:\Users\danha\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds\`
+const worldFileName = `VsgSYaaGAAA=`
 
 func Init() error {
 	root := &cobra.Command{
 		Use: "mine <x> <y> <z>",
 		Run: func(cmd *cobra.Command, args []string) {
-			w, err := world.OpenWorld(worldPath)
+			w, err := world.OpenWorld(filepath.Join(worldDirPath, worldFileName))
 			if err != nil {
 				log.Fatal(err)
 			}
-			defer w.Close()
 
-			key, err := parse.SubChunkKey(
-				int32(intArg(args[0])), // x
-				int32(intArg(args[2])), // z
-				0,                      // dimension
-				intArg(args[1]),        // y
+			key, err := leveldb.SubChunkKey(
+				intArg(args[0]), // x
+				intArg(args[1]), // y
+				intArg(args[2]), // z
+				0,
 			)
+
+			data, err := w.Get(key)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			value, err := w.Get(key)
-			if err != nil {
-				log.Fatal(err)
-			}
-			sc, err := terrain.NewSubChunk(value)
+			sc, err := terrain.NewSubChunk(data)
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			for i := range sc.BlockStorage {
-				if i > 20 {
+				if i > 32 {
 					break
 				}
 				index := sc.BlockStorage[i]
@@ -53,8 +53,6 @@ func Init() error {
 				fmt.Printf("(%d, %d, %d)", x, y, z)
 				fmt.Printf(" - %s\n", sc.StatePalette[index].BlockID())
 			}
-
-			//util.ParseSubChunk(value)
 		},
 	}
 
