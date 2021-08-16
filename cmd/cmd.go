@@ -9,7 +9,6 @@ import (
 	"github.com/midnightfreddie/McpeTool/world"
 
 	"github.com/danhale-git/mine/leveldb"
-
 	"github.com/danhale-git/mine/terrain"
 	"github.com/spf13/cobra"
 )
@@ -38,20 +37,29 @@ func Init() error {
 				log.Fatal(err)
 			}
 
+			//fmt.Println(mock.ByteSliceAsString(data))
+
 			sc, err := terrain.NewSubChunk(data)
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			for i := range sc.BlockStorage {
+			//fmt.Println(len(sc.WaterLogged.Palette))
+			//fmt.Println(sc.WaterLogged.Indices)
+			fmt.Println(sc.WaterLogged.Palette)
+
+			for i := range sc.Blocks.Indices {
 				if i > 32 {
 					break
 				}
-				index := sc.BlockStorage[i]
+
+				block := sc.Blocks.Palette[sc.Blocks.Indices[i]].BlockID()
+				waterLogged := sc.WaterLogged.Palette[sc.WaterLogged.Indices[i]].BlockID()
+
 				x, y, z := blockPosition(i)
 
 				fmt.Printf("(%d, %d, %d)", x, y, z)
-				fmt.Printf(" - %s\n", sc.StatePalette[index].BlockID())
+				fmt.Printf(" - %s - %s [[%d, %d]] [%d]\n", block, waterLogged, sc.Blocks.Indices[i], sc.WaterLogged.Indices[i], i)
 			}
 		},
 	}

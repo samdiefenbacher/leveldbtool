@@ -1,6 +1,7 @@
 package parse
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,7 @@ import (
 	"log"
 	"math"
 
-	"github.com/midnightfreddie/nbt2json"
+	"github.com/icza/bitio"
 )
 
 const subChunkBlockCount = 4096
@@ -48,33 +49,48 @@ func BlockStateIndices(r io.Reader) ([]int, error) {
 	bitsPerBlock := int(bitsPerBlockAndVersion >> 1)
 
 	storageVersion := int(bitsPerBlockAndVersion & 1)
-	if storageVersion != 0 {
+	// It seems like storageVersion = 1 for the water-logged blocks storage records
+	/*if storageVersion != 0 {
 		return nil, fmt.Errorf("invalid block storage version %d: 0 is expected for save files", storageVersion)
-	}
+	}*/
+	fmt.Println("storageVersion:", storageVersion)
 
 	blocksPerWord := int(math.Floor(32.0 / float64(bitsPerBlock)))
 	wordCount := int(math.Ceil(subChunkBlockCount / float64(blocksPerWord)))
 
 	indices := make([]int, subChunkBlockCount)
-	idx := 0
+
+	i := 0
 
 	for w := 0; w < wordCount; w++ {
 		word := make([]byte, 4)
 		if err := readLittleEndian(r, word); err != nil {
-			log.Fatal(err)
+			return nil, fmt.Errorf("reading word %d from raw data: %s", w, err)
 		}
 
-		// Might need to use a bit reader here if numbers other than 4 or 8 come up.
+		// TODO: Handle any bits per block
 		switch bitsPerBlock {
 		case 4:
 			for _, b := range word {
 				first := b >> 4
 				second := (b << 4) >> 4
 
-				indices[idx] = int(first)
-				idx++
-				indices[idx] = int(second)
-				idx++
+				indices[i] = int(first)
+				i++
+				indices[i] = int(second)
+				i++
+			}
+		case 1:
+		case 6:
+		case 7:
+			wordIndices, err := parseBlockStorageWord(word, bitsPerBlock, blocksPerWord)
+			if err != nil {
+				return nil, fmt.Errorf("parsing word: %s", err)
+			}
+
+			for _, wi := range wordIndices {
+				indices[i] = wi
+				i++
 			}
 		default:
 			log.Panicf("unhandled bits per block '%d'", bitsPerBlock)
@@ -84,20 +100,32 @@ func BlockStateIndices(r io.Reader) ([]int, error) {
 	return indices, nil
 }
 
+func parseBlockStorageWord(word []byte, bitsPerBlock, blocksPerWord int) ([]int, error) {
+	indices := make([]int, blocksPerWord)
+
+	r := bitio.NewReader(bytes.NewReader(word))
+	for i := 0; i < blocksPerWord; i++ {
+		var err error
+		index64, err := r.ReadBits(uint8(bitsPerBlock))
+		if err != nil {
+			return nil, fmt.Errorf("reading 6 bits at index %d: %s", i, err)
+		}
+
+		indices[i] = int(index64)
+	}
+
+	return indices, nil
+}
+
 // NBT reads the remainder of a subchunk record and returns a slice of tags. It should be called after StorageCount and
 // the resulting call(s) to BlockStateIndices.
-func NBT(r io.Reader) ([]NBTTag, error) {
+func NBT(r *bytes.Reader) ([]NBTTag, error) {
 	var paletteSize int32
 	if err := readLittleEndian(r, &paletteSize); err != nil {
 		return nil, fmt.Errorf("reading palette size bytes: %w", err)
 	}
 
-	remainingBytes, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("reading remaining bytes, %w", err)
-	}
-
-	j, err := nbt2json.Nbt2Json(remainingBytes, "")
+	j, err := Nbt2Json(r, int(paletteSize))
 	if err != nil {
 		return nil, fmt.Errorf("calling nbt2json, %w", err)
 	}
@@ -110,7 +138,7 @@ func NBT(r io.Reader) ([]NBTTag, error) {
 	}
 
 	if len(nbt.NBT) != int(paletteSize) {
-		return nil, fmt.Errorf("%d nbt records returned for palette size of %d", paletteSize, len(nbt.NBT))
+		return nil, fmt.Errorf("%d nbt records returned for palette size of %d", len(nbt.NBT), paletteSize)
 	}
 
 	return nbt.NBT, nil
