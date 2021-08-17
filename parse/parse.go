@@ -8,8 +8,6 @@ import (
 	"io"
 	"log"
 	"math"
-
-	"github.com/icza/bitio"
 )
 
 const subChunkBlockCount = 4096
@@ -43,17 +41,16 @@ func StorageCount(r io.Reader) (int, error) {
 func BlockStateIndices(r io.Reader) ([]int, error) {
 	var bitsPerBlockAndVersion byte
 	if err := readLittleEndian(r, &bitsPerBlockAndVersion); err != nil {
-		log.Fatal(err)
+		log.Fatalf("reading version byte: %s", err)
 	}
 
 	bitsPerBlock := int(bitsPerBlockAndVersion >> 1)
 
-	storageVersion := int(bitsPerBlockAndVersion & 1)
+	//storageVersion := int(bitsPerBlockAndVersion & 1)
 	// It seems like storageVersion = 1 for the water-logged blocks storage records
 	/*if storageVersion != 0 {
 		return nil, fmt.Errorf("invalid block storage version %d: 0 is expected for save files", storageVersion)
 	}*/
-	fmt.Println("storageVersion:", storageVersion)
 
 	blocksPerWord := int(math.Floor(32.0 / float64(bitsPerBlock)))
 	wordCount := int(math.Ceil(subChunkBlockCount / float64(blocksPerWord)))
@@ -63,55 +60,15 @@ func BlockStateIndices(r io.Reader) ([]int, error) {
 	i := 0
 
 	for w := 0; w < wordCount; w++ {
-		word := make([]byte, 4)
-		if err := readLittleEndian(r, word); err != nil {
+		var word int32
+		if err := readLittleEndian(r, &word); err != nil {
 			return nil, fmt.Errorf("reading word %d from raw data: %s", w, err)
 		}
 
-		// TODO: Handle any bits per block
-		switch bitsPerBlock {
-		case 4:
-			for _, b := range word {
-				first := b >> 4
-				second := (b << 4) >> 4
-
-				indices[i] = int(first)
-				i++
-				indices[i] = int(second)
-				i++
-			}
-		case 1:
-		case 6:
-		case 7:
-			wordIndices, err := parseBlockStorageWord(word, bitsPerBlock, blocksPerWord)
-			if err != nil {
-				return nil, fmt.Errorf("parsing word: %s", err)
-			}
-
-			for _, wi := range wordIndices {
-				indices[i] = wi
-				i++
-			}
-		default:
-			log.Panicf("unhandled bits per block '%d'", bitsPerBlock)
+		for b := 0; b < blocksPerWord && i < subChunkBlockCount; b++ {
+			indices[i] = int((word >> ((i % blocksPerWord) * bitsPerBlock)) & ((1 << bitsPerBlock) - 1))
+			i++
 		}
-	}
-
-	return indices, nil
-}
-
-func parseBlockStorageWord(word []byte, bitsPerBlock, blocksPerWord int) ([]int, error) {
-	indices := make([]int, blocksPerWord)
-
-	r := bitio.NewReader(bytes.NewReader(word))
-	for i := 0; i < blocksPerWord; i++ {
-		var err error
-		index64, err := r.ReadBits(uint8(bitsPerBlock))
-		if err != nil {
-			return nil, fmt.Errorf("reading 6 bits at index %d: %s", i, err)
-		}
-
-		indices[i] = int(index64)
 	}
 
 	return indices, nil

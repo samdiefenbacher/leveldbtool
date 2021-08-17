@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -14,7 +15,9 @@ import (
 )
 
 const worldDirPath = `C:\Users\danha\AppData\Local\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds\`
-const worldFileName = `VsgSYaaGAAA=`
+
+//const worldFileName = `VsgSYaaGAAA=` // MINETEST  16 64 16
+const worldFileName = `97caYQjdAgA=` // MINETESTFLAT 0 0 0
 
 func Init() error {
 	root := &cobra.Command{
@@ -44,22 +47,35 @@ func Init() error {
 				log.Fatal(err)
 			}
 
-			//fmt.Println(len(sc.WaterLogged.Palette))
-			//fmt.Println(sc.WaterLogged.Indices)
-			fmt.Println(sc.WaterLogged.Palette)
+			fmt.Println("sc.Blocks.Indices", len(sc.Blocks.Indices))
+			fmt.Println("sc.Blocks.Palette", len(sc.Blocks.Palette))
+			fmt.Println("sc.WaterLogged.Indices", len(sc.WaterLogged.Indices))
+
+			prettyPrint(sc.Blocks.Palette)
+
+			printCount := 48
 
 			for i := range sc.Blocks.Indices {
-				if i > 32 {
+				if i > printCount {
 					break
 				}
 
-				block := sc.Blocks.Palette[sc.Blocks.Indices[i]].BlockID()
-				waterLogged := sc.WaterLogged.Palette[sc.WaterLogged.Indices[i]].BlockID()
+				idx := sc.Blocks.Indices[i]
+				if idx >= len(sc.Blocks.Palette) {
+					log.Printf("index %d out of range %d", idx, len(sc.Blocks.Palette))
+					continue
+				}
+				block := sc.Blocks.Palette[idx].BlockID()
+
+				var waterLogged string
+				if len(sc.WaterLogged.Indices) > 0 {
+					waterLogged = sc.WaterLogged.Palette[sc.WaterLogged.Indices[i]].BlockID()
+				}
 
 				x, y, z := blockPosition(i)
 
 				fmt.Printf("(%d, %d, %d)", x, y, z)
-				fmt.Printf(" - %s - %s [[%d, %d]] [%d]\n", block, waterLogged, sc.Blocks.Indices[i], sc.WaterLogged.Indices[i], i)
+				fmt.Printf(" - %s - %s [%d] (%d) \n", block, waterLogged, i, idx)
 			}
 		},
 	}
@@ -83,4 +99,16 @@ func blockPosition(increment int) (x, y, z int) {
 	z = (increment >> 4) & 0xF
 
 	return
+}
+
+func prettyPrint(s interface{}) {
+	b, err := json.MarshalIndent(s, "", "  ")
+	fmt.Println(string(b), err)
+}
+
+func printAlignedSlice(a, b []int) {
+	for i := range a {
+		fmt.Printf("%d,%d\t", a[i], b[i])
+	}
+	fmt.Println()
 }

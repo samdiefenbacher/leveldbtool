@@ -76,7 +76,7 @@ func NewSubChunk(data []byte) (*SubChunk, error) {
 			return nil, fmt.Errorf("parsing nbt data: %s", err)
 		}
 
-		fmt.Println("after water logged BNT:", r.Len())
+		fmt.Println("after water logged NBT:", r.Len())
 	default:
 		log.Panicf("unhandled storage count: %d", c)
 	}

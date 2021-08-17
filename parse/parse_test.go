@@ -24,7 +24,7 @@ func TestStorageCount(t *testing.T) {
 	}
 }
 
-func TestBlockStorage(t *testing.T) {
+func TestBlockStateIndices(t *testing.T) {
 	r := mock.SubChunkReader()
 	_, _ = r.Read(make([]byte, 2))
 
