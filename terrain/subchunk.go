@@ -26,6 +26,20 @@ type BlockStorage struct {
 	Palette []nbt.NBTTag // A palette of block types and states
 }
 
+// voxelToIndex returns the block storage index from the given sub chunk x y and z coordinates.
+func voxelToIndex(x, y, z int) int {
+	return y + z*16 + x*16*16
+}
+
+// indexToVoxel returns the world x y z offset from the sub chunk root for the given block storage index.
+func indexToVoxel(i int) (x, y, z int) {
+	x = (i >> 8) & 0xF
+	y = i & 0xF
+	z = (i >> 4) & 0xF
+
+	return
+}
+
 func NewSubChunk(data []byte) (*SubChunk, error) {
 	r := bytes.NewReader(data)
 	s := SubChunk{}
