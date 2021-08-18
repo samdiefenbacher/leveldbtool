@@ -47,10 +47,6 @@ func Init() error {
 				log.Fatal(err)
 			}
 
-			fmt.Println("sc.Blocks.Indices", len(sc.Blocks.Indices))
-			fmt.Println("sc.Blocks.Palette", len(sc.Blocks.Palette))
-			fmt.Println("sc.WaterLogged.Indices", len(sc.WaterLogged.Indices))
-
 			prettyPrint(sc.Blocks.Palette)
 
 			printCount := 48
