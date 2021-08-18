@@ -1,4 +1,4 @@
-package parse
+package nbt
 
 import (
 	"bytes"
@@ -21,28 +21,8 @@ var Name = "Named Binary Tag to JSON"
 // Used by all converters; change with UseJavaEncoding() or UseBedrockEncoding()
 var byteOrder = binary.ByteOrder(binary.LittleEndian)
 
-// UseJavaEncoding sets the module to decode/encode from/to big endian NBT for Minecraft Java Edition
-func UseJavaEncoding() {
-	byteOrder = binary.BigEndian
-}
-
-// UseBedrockEncoding sets the module to decode/encode from/to little endian NBT for Minecraft Bedrock Edition
-func UseBedrockEncoding() {
-	byteOrder = binary.LittleEndian
-}
-
 // If longAsString is true, nbt long (int64) will be a string of the number instead of a valueLeast/valueMost uint32 pair
 var longAsString = false
-
-// UseLongAsString will make nbt long values as string numbers in the json/yaml
-func UseLongAsString() {
-	longAsString = true
-}
-
-// UseLongAsUint32Pair will make nbt long values as valueLeast/valueMost uint32 pairs in the json
-func UseLongAsUint32Pair() {
-	longAsString = false
-}
 
 // NbtParseError is when the nbt data does not match an expected pattern. Pass it message string and downstream error
 type NbtParseError struct {
@@ -108,12 +88,6 @@ func longToIntPair(i int64) NbtLong {
 	nbtLong.ValueLeast = uint32(i & 0xffffffff)
 	nbtLong.ValueMost = uint32(i >> 32)
 	return nbtLong
-}
-
-func intPairToLong(nbtLong NbtLong) int64 {
-	var i int64
-	i = int64(nbtLong.ValueLeast) | (int64(nbtLong.ValueMost) << 32)
-	return i
 }
 
 // Nbt2Json converts uncompressed NBT byte array to JSON byte array
