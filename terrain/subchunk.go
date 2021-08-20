@@ -169,7 +169,7 @@ func subChunkPalette(r *bytes.Reader) ([]nbt.NBTTag, error) {
 	}
 
 	//j, err := nbt.Nbt2Json(r, int(paletteSize))
-	j, err := nbt2json.Nbt2Json(r, "", int(paletteSize))
+	j, err := nbt2json.ReadNbt2Json(r, "", int(paletteSize))
 	if err != nil {
 		return nil, fmt.Errorf("calling nbt2json, %w", err)
 	}
