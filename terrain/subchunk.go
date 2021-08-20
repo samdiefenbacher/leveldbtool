@@ -10,6 +10,7 @@ import (
 	"math"
 
 	"github.com/danhale-git/mine/nbt"
+	"github.com/midnightfreddie/nbt2json"
 )
 
 const subChunkBlockCount = 4096
@@ -167,23 +168,24 @@ func subChunkPalette(r *bytes.Reader) ([]nbt.NBTTag, error) {
 		return nil, fmt.Errorf("reading palette size bytes: %w", err)
 	}
 
-	j, err := nbt.Nbt2Json(r, int(paletteSize))
+	//j, err := nbt.Nbt2Json(r, int(paletteSize))
+	j, err := nbt2json.Nbt2Json(r, "", int(paletteSize))
 	if err != nil {
 		return nil, fmt.Errorf("calling nbt2json, %w", err)
 	}
 
-	nbt := struct {
+	nbtData := struct {
 		NBT []nbt.NBTTag
 	}{}
-	if err := json.Unmarshal(j, &nbt); err != nil {
+	if err := json.Unmarshal(j, &nbtData); err != nil {
 		return nil, fmt.Errorf("unmarshaling json, %w", err)
 	}
 
-	if len(nbt.NBT) != int(paletteSize) {
-		return nil, fmt.Errorf("%d nbt records returned for palette size of %d", len(nbt.NBT), paletteSize)
+	if len(nbtData.NBT) != int(paletteSize) {
+		return nil, fmt.Errorf("%d nbt records returned for palette size of %d", len(nbtData.NBT), paletteSize)
 	}
 
-	return nbt.NBT, nil
+	return nbtData.NBT, nil
 }
 
 func readLittleEndian(r io.Reader, data interface{}) error {
