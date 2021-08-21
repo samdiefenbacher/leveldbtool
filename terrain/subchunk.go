@@ -34,9 +34,9 @@ func voxelToIndex(x, y, z int) int {
 
 // indexToVoxel returns the world x y z offset from the sub chunk root for the given block storage index.
 func indexToVoxel(i int) (x, y, z int) {
-	x = (i >> 8) & 0xF
-	y = i & 0xF
-	z = (i >> 4) & 0xF
+	x = (i >> 8) & 15
+	y = i & 15
+	z = (i >> 4) & 15
 
 	return
 }
