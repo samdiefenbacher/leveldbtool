@@ -15,14 +15,14 @@ import (
 
 const subChunkBlockCount = 4096
 
-// SubChunk is the parsed data for one 16x16 subchunk. A palette including all block states in the subchunk is indexed
+// subChunkData is the parsed data for one 16x16 subchunk. A palette including all block states in the subchunk is indexed
 // by a slice of integers (one for each block) to determine the state and block id for each block in the palette.
-type SubChunk struct {
-	Blocks      BlockStorage
-	WaterLogged BlockStorage
+type subChunkData struct {
+	Blocks      blockStorage
+	WaterLogged blockStorage
 }
 
-type BlockStorage struct {
+type blockStorage struct {
 	Indices []int        // An index into the palette for each block in the sub chunk
 	Palette []nbt.NBTTag // A palette of block types and states
 }
@@ -41,9 +41,9 @@ func subChunkIndexToVoxel(i int) (x, y, z int) {
 	return
 }
 
-func NewSubChunk(data []byte) (*SubChunk, error) {
+func parseSubChunk(data []byte) (*subChunkData, error) {
 	r := bytes.NewReader(data)
-	s := SubChunk{}
+	s := subChunkData{}
 	c, err := subChunkStorageCount(r)
 	if err != nil {
 		return nil, err

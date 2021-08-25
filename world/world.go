@@ -31,20 +31,23 @@ func New(path string) (*World, error) {
 	return &w, nil
 }
 
+// TODO: Don't get the sub chunk from the DB every time, cache it
+
+// GetBlock returns the block at the given coordinates.
 func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 	key, err := leveldb.SubChunkKey(
 		x, y, z,
 		dimension,
 	)
 
-	data, err := w.db.Get(key)
+	value, err := w.db.Get(key)
 	if err != nil {
 		return Block{}, fmt.Errorf("getting sub chunk with key '%s' from leveldb: %w", key, err)
 	}
 
-	sc, err := NewSubChunk(data)
+	sc, err := parseSubChunk(value)
 	if err != nil {
-		return Block{}, fmt.Errorf("decoding sub chunk data: %w", err)
+		return Block{}, fmt.Errorf("decoding sub chunk value: %w", err)
 	}
 
 	voxelIndex := subChunkVoxelToIndex(x, y, z)

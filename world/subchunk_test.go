@@ -39,7 +39,7 @@ func TestSubChunkIndexToVoxel(t *testing.T) {
 }
 
 func TestNewSubChunk(t *testing.T) {
-	_, err := NewSubChunk(mock.SubChunkValue)
+	_, err := parseSubChunk(mock.SubChunkValue)
 	if err != nil {
 		t.Errorf("unexpected error returned: %s", err)
 	}
