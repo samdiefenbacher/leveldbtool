@@ -1,4 +1,4 @@
-package terrain
+package world
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"math"
 
 	"github.com/danhale-git/mine/nbt"
-	"github.com/midnightfreddie/nbt2json"
+	"github.com/danhale-git/nbt2json"
 )
 
 const subChunkBlockCount = 4096
@@ -28,12 +28,12 @@ type BlockStorage struct {
 }
 
 // voxelToIndex returns the block storage index from the given sub chunk x y and z coordinates.
-func voxelToIndex(x, y, z int) int {
+func subChunkVoxelToIndex(x, y, z int) int {
 	return y + z*16 + x*16*16
 }
 
 // indexToVoxel returns the world x y z offset from the sub chunk root for the given block storage index.
-func indexToVoxel(i int) (x, y, z int) {
+func subChunkIndexToVoxel(i int) (x, y, z int) {
 	x = (i >> 8) & 15
 	y = i & 15
 	z = (i >> 4) & 15
@@ -48,10 +48,6 @@ func NewSubChunk(data []byte) (*SubChunk, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println("storage count:", c)
-
-	fmt.Println("after reading storage count:", r.Len())
 
 	// https://minecraft.fandom.com/wiki/Bedrock_Edition_level_format
 	// In the majority of cases, there is only one storage record.
@@ -89,8 +85,6 @@ func NewSubChunk(data []byte) (*SubChunk, error) {
 		if err != nil {
 			return nil, fmt.Errorf("parsing nbt data: %s", err)
 		}
-
-		fmt.Println("after water logged subChunkPalette:", r.Len())
 	default:
 		log.Panicf("unhandled storage count: %d", c)
 	}

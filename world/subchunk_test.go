@@ -1,4 +1,4 @@
-package terrain
+package world
 
 import (
 	"testing"
@@ -6,12 +6,12 @@ import (
 	"github.com/danhale-git/mine/mock"
 )
 
-func TestVoxelToIndex(t *testing.T) {
+func TestSubChunkVoxelToIndex(t *testing.T) {
 	i := 0
 	for x := 0; x < 16; x++ {
 		for z := 0; z < 16; z++ {
 			for y := 0; y < 16; y++ {
-				converted := voxelToIndex(x, y, z)
+				converted := subChunkVoxelToIndex(x, y, z)
 				if converted != i {
 					t.Fatalf("expected coordinate %d, %d, %d to have index %d but got: %d",
 						x, y, z, i, converted)
@@ -22,12 +22,12 @@ func TestVoxelToIndex(t *testing.T) {
 	}
 }
 
-func TestIndexToVoxel(t *testing.T) {
+func TestSubChunkIndexToVoxel(t *testing.T) {
 	i := 0
 	for x := 0; x < 16; x++ {
 		for z := 0; z < 16; z++ {
 			for y := 0; y < 16; y++ {
-				cx, cy, cz := indexToVoxel(i)
+				cx, cy, cz := subChunkIndexToVoxel(i)
 				if cx != x || cy != y || cz != z {
 					t.Fatalf("expected index %d to have coordinate %d %d %d but got: %d %d %d",
 						i, x, y, z, cx, cy, cz)
