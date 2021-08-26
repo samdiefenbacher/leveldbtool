@@ -10,13 +10,18 @@ import (
 
 const waterID = "minecraft:water"
 
-// Worlder is implemented by mock.World and github.com/midnightfreddie/McpeTool/world.World
-type Worlder interface {
+// BlockAPI modifies block data.
+type BlockAPI interface {
 	GetBlock(x, y, z, dimension int) (Block, error)
 }
 
+// LevelDB returns data from a leveldb database.
+type LevelDB interface {
+	Get(key []byte) ([]byte, error)
+}
+
 type World struct {
-	db world.World
+	db LevelDB
 }
 
 func New(path string) (*World, error) {
@@ -26,7 +31,7 @@ func New(path string) (*World, error) {
 		log.Fatal(err)
 	}
 
-	w.db = l
+	w.db = &l
 
 	return &w, nil
 }

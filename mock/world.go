@@ -1,3 +1,13 @@
 package mock
 
-type World struct{}
+type LevelDB struct {
+	data []byte
+}
+
+func (w *LevelDB) Get(_ []byte) ([]byte, error) {
+	return w.data, nil
+}
+
+func ValidLevelDB() *LevelDB {
+	return &LevelDB{SubChunkValue}
+}
