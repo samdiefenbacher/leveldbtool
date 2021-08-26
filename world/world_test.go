@@ -1,10 +1,36 @@
 package world
 
 import (
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/danhale-git/mine/mock"
 )
+
+var testWorld *World
+
+const worldDirName = `97caYQjdAgA=`
+
+func init() {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("getting working directory: %s", err)
+	}
+
+	// Benchmarks need to be run from current dir
+	if !strings.HasSuffix(wd, "world") {
+		return
+	}
+
+	testWorld, err = New(filepath.Join(wd, worldDirName))
+	if err != nil {
+		log.Fatalf("unexpected error opening world: %s", err)
+	}
+}
 
 func TestGetBlock(t *testing.T) {
 	w := World{mock.ValidLevelDB()}
@@ -25,4 +51,24 @@ func TestGetBlock(t *testing.T) {
 			t.Errorf("block did not match expected values: expected %+v: got %+v", expected[y], b)
 		}
 	}
+}
+
+var result Block
+
+func BenchmarkGetBlock(b *testing.B) {
+	if testWorld == nil {
+		fmt.Println("test world is nil, are you in the world package directory?")
+	}
+
+	var r Block
+	var err error
+
+	for n := 0; n < b.N; n++ {
+		r, err = testWorld.GetBlock(0, 0, 0, 0)
+		if err != nil {
+			b.Errorf("error returned getting block")
+		}
+	}
+
+	result = r
 }
