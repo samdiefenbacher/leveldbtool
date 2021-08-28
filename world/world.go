@@ -3,6 +3,7 @@ package world
 import (
 	"fmt"
 	"log"
+	"math"
 
 	"github.com/danhale-git/mine/leveldb"
 	"github.com/midnightfreddie/McpeTool/world"
@@ -21,11 +22,13 @@ type LevelDB interface {
 }
 
 type World struct {
-	db LevelDB
+	db        LevelDB
+	subChunks map[struct{ x, y, z, d int }]*subChunkData
 }
 
 func New(path string) (*World, error) {
 	w := World{}
+	w.subChunks = make(map[struct{ x, y, z, d int }]*subChunkData)
 	l, err := world.OpenWorld(path)
 	if err != nil {
 		log.Fatal(err)
@@ -40,19 +43,28 @@ func New(path string) (*World, error) {
 
 // GetBlock returns the block at the given coordinates.
 func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
-	key, err := leveldb.SubChunkKey(
-		x, y, z,
-		dimension,
-	)
+	origin := subChunkOrigin(x, y, z, dimension)
 
-	value, err := w.db.Get(key)
-	if err != nil {
-		return Block{}, fmt.Errorf("getting sub chunk with key '%s' from leveldb: %w", key, err)
-	}
+	var sc *subChunkData
+	var ok bool
 
-	sc, err := parseSubChunk(value)
-	if err != nil {
-		return Block{}, fmt.Errorf("decoding sub chunk value: %w", err)
+	if sc, ok = w.subChunks[origin]; !ok {
+		key, err := leveldb.SubChunkKey(
+			x, y, z,
+			dimension,
+		)
+
+		value, err := w.db.Get(key)
+		if err != nil {
+			return Block{}, fmt.Errorf("getting sub chunk with key '%s' from leveldb: %w", key, err)
+		}
+
+		sc, err = parseSubChunk(value)
+		if err != nil {
+			return Block{}, fmt.Errorf("decoding sub chunk value: %w", err)
+		}
+
+		w.subChunks[origin] = sc
 	}
 
 	voxelIndex := subChunkVoxelToIndex(x, y, z)
@@ -71,4 +83,13 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 		X:  x, Y: y, Z: z,
 		waterLogged: waterLogged,
 	}, nil
+}
+
+func subChunkOrigin(x, y, z, d int) struct{ x, y, z, d int } {
+	return struct{ x, y, z, d int }{
+		int(math.Floor(float64(x) / 16)),
+		int(math.Floor(float64(y) / 16)),
+		int(math.Floor(float64(z) / 16)),
+		d,
+	}
 }
