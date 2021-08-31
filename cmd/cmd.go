@@ -25,7 +25,19 @@ func Init() error {
 				log.Fatal(err)
 			}
 
-			c, err := strconv.Atoi(args[0])
+			b, err := w.GetBlock(
+				atoi(args[0]),
+				atoi(args[1]),
+				atoi(args[2]),
+				0,
+			)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Println(b)
+
+			/*c, err := strconv.Atoi(args[0])
 			if err != nil {
 				log.Fatalf("invalid argument '%s': %s", args[0], err)
 			}
@@ -41,9 +53,18 @@ func Init() error {
 						i++
 					}
 				}
-			}
+			}*/
 		},
 	}
 
 	return root.Execute()
+}
+
+func atoi(s string) int {
+	i, err := strconv.Atoi(s)
+	if err != nil {
+		log.Fatalf("invalid arg: '%s'", s)
+	}
+
+	return i
 }

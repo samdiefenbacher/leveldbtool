@@ -56,7 +56,13 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 
 		value, err := w.db.Get(key)
 		if err != nil {
-			return Block{}, fmt.Errorf("getting sub chunk with key '%s' from leveldb: %w", key, err)
+
+			// TODO: Make a PR to give this error a type - https://github.com/midnightfreddie/goleveldb/blob/fb12d34a9c1f2c7615bb9b258d09400cd315502f/leveldb/errors/errors.go#L19
+
+			if err.Error() == "leveldb: not found" {
+				return Block{}, &SubChunkNotSavedError{origin}
+			}
+			return Block{}, fmt.Errorf("getting sub chunk with key '%x': %w", key, err)
 		}
 
 		sc, err = parseSubChunk(value)
@@ -92,4 +98,22 @@ func subChunkOrigin(x, y, z, d int) struct{ x, y, z, d int } {
 		int(math.Floor(float64(z) / 16)),
 		d,
 	}
+}
+
+// SubChunkNotSavedError is returned if a requested sub chunk is not present in the world database.
+type SubChunkNotSavedError struct {
+	origin struct{ x, y, z, d int }
+}
+
+// TODO: State the dimension in the error message, when dimensions are supported
+
+func (e *SubChunkNotSavedError) Error() string {
+	return fmt.Sprintf("chunk with origin %d %d %d is not stored in this world database",
+		e.origin.x, e.origin.y, e.origin.z)
+}
+
+// Is implements Is(error) to support errors.Is()
+func (e *SubChunkNotSavedError) Is(tgt error) bool {
+	_, ok := tgt.(*SubChunkNotSavedError)
+	return ok
 }
