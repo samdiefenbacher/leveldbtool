@@ -85,7 +85,7 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 	}
 
 	return Block{
-		id: blockID,
+		ID: blockID,
 		X:  x, Y: y, Z: z,
 		waterLogged: waterLogged,
 	}, nil
