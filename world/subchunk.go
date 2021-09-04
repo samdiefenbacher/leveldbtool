@@ -85,15 +85,16 @@ func parseSubChunk(data []byte) (*subChunkData, error) {
 			return nil, fmt.Errorf("parsing water logged: %s", err)
 		}
 		// Added some panicking here as the Minecraft level format seems changeable.
-		if s.WaterLogged.Palette[1].BlockID() != waterID {
+
+		if len(s.WaterLogged.Palette) > 2 {
+			log.Panicf(`
+second block storage palette exceeded known max length of 2
+found these states - %+v`, s.WaterLogged.Palette)
+		}
+		if len(s.WaterLogged.Palette) > 1 && s.WaterLogged.Palette[1].BlockID() != waterID {
 			log.Panicf(`
 second block storage palette did not have '%s' at index 1 to indicate water logged blocks
 found id '%s' unexpectedly`, waterID, s.WaterLogged.Palette[1].BlockID())
-		}
-		if len(s.WaterLogged.Palette) != 2 {
-			log.Panicf(`
-second block storage palette did not have expected length of %d
-found these states - %+v`, 2, s.WaterLogged.Palette)
 		}
 
 	default:
