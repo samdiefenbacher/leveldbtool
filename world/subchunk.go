@@ -14,6 +14,7 @@ import (
 )
 
 const subChunkBlockCount = 4096
+const chunkSize = 16
 
 // subChunkData is the parsed data for one 16x16 subchunk. A palette including all block states in the subchunk is indexed
 // by a slice of integers (one for each block) to determine the state and block id for each block in the palette.
@@ -27,8 +28,27 @@ type blockStorage struct {
 	Palette []nbt.NBTTag // A palette of block types and states
 }
 
+// subChunkOrigin returns the origin of the chunk containing the given coordinates. This is the corner block with the
+// lowest x, y and z values.
+func subChunkOrigin(x, y, z, d int) struct{ x, y, z, d int } {
+	return struct{ x, y, z, d int }{
+		int(math.Floor(float64(x) / 16)),
+		int(math.Floor(float64(y) / 16)),
+		int(math.Floor(float64(z) / 16)),
+		d,
+	}
+}
+
+// worldVoxelToSubChunk returns the coordinates relative to sub chunk origin, from the given world coordinates.
+func worldVoxelToSubChunk(x, y, z int) (sx, sy, sz int) {
+	return x % chunkSize, y % chunkSize, z % chunkSize
+}
+
 // voxelToIndex returns the block storage index from the given sub chunk x y and z coordinates.
 func subChunkVoxelToIndex(x, y, z int) int {
+	if x > 15 || y > 15 || z > 15 {
+		log.Panicf("coordinates %d %d %d are invalid: sub chunk cooridnates may not exceed 0-15", x, y, z)
+	}
 	return y + z*16 + x*16*16
 }
 

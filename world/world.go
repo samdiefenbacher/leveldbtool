@@ -3,7 +3,6 @@ package world
 import (
 	"fmt"
 	"log"
-	"math"
 
 	"github.com/danhale-git/mine/leveldb"
 	"github.com/midnightfreddie/McpeTool/world"
@@ -73,12 +72,13 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 		w.subChunks[origin] = sc
 	}
 
-	voxelIndex := subChunkVoxelToIndex(x, y, z)
+	voxelIndex := subChunkVoxelToIndex(worldVoxelToSubChunk(x, y, z))
+
 	blockIndex := sc.Blocks.Indices[voxelIndex]
 	blockID := sc.Blocks.Palette[blockIndex].BlockID()
 
 	waterLogged := false
-	if len(sc.WaterLogged.Indices) >= voxelIndex {
+	if len(sc.WaterLogged.Indices) > 0 && len(sc.WaterLogged.Indices) >= voxelIndex {
 		waterIndex := sc.WaterLogged.Indices[voxelIndex]
 		blockID := sc.WaterLogged.Palette[waterIndex].BlockID()
 		waterLogged = blockID == waterID
@@ -89,15 +89,6 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 		X:  x, Y: y, Z: z,
 		waterLogged: waterLogged,
 	}, nil
-}
-
-func subChunkOrigin(x, y, z, d int) struct{ x, y, z, d int } {
-	return struct{ x, y, z, d int }{
-		int(math.Floor(float64(x) / 16)),
-		int(math.Floor(float64(y) / 16)),
-		int(math.Floor(float64(z) / 16)),
-		d,
-	}
 }
 
 // SubChunkNotSavedError is returned if a requested sub chunk is not present in the world database.
