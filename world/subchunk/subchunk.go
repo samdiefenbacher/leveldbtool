@@ -1,4 +1,4 @@
-package world
+package subchunk
 
 import (
 	"bytes"
@@ -13,12 +13,13 @@ import (
 	"github.com/danhale-git/nbt2json"
 )
 
-const subChunkBlockCount = 4096
-const chunkSize = 16
+const BlockCount = 4096
+const Size = 16
+const WaterID = "minecraft:water"
 
-// subChunkData is the parsed data for one 16x16 subchunk. A palette including all block states in the subchunk is indexed
+// Data is the parsed data for one 16x16 subchunk. A palette including all block states in the subchunk is indexed
 // by a slice of integers (one for each block) to determine the state and block id for each block in the palette.
-type subChunkData struct {
+type Data struct {
 	Blocks      blockStorage
 	WaterLogged blockStorage
 }
@@ -28,32 +29,31 @@ type blockStorage struct {
 	Palette []nbt.NBTTag // A palette of block types and states
 }
 
-// subChunkOrigin returns the origin of the chunk containing the given coordinates. This is the corner block with the
-// lowest x, y and z values.
-func subChunkOrigin(x, y, z, d int) struct{ x, y, z, d int } {
-	return struct{ x, y, z, d int }{
-		int(math.Floor(float64(x) / 16)),
-		int(math.Floor(float64(y) / 16)),
-		int(math.Floor(float64(z) / 16)),
-		d,
-	}
+// Origin returns the origin of the sub chunk containing the given coordinates. This is the corner block with
+// the lowest x, y and z values.
+func Origin(x, y, z int) (xo, yo, zo int) {
+	xo = int(math.Floor(float64(x) / 16))
+	yo = int(math.Floor(float64(y) / 16))
+	zo = int(math.Floor(float64(z) / 16))
+
+	return
 }
 
-// worldVoxelToSubChunk returns the coordinates relative to sub chunk origin, from the given world coordinates.
-func worldVoxelToSubChunk(x, y, z int) (sx, sy, sz int) {
-	return x % chunkSize, y % chunkSize, z % chunkSize
+// WorldToLocal returns the coordinates relative to sub chunk origin, from the given world coordinates.
+func WorldToLocal(x, y, z int) (sx, sy, sz int) {
+	return x % Size, y % Size, z % Size
 }
 
-// voxelToIndex returns the block storage index from the given sub chunk x y and z coordinates.
-func subChunkVoxelToIndex(x, y, z int) int {
+// VoxelToIndex returns the block storage index from the given sub chunk x y and z coordinates.
+func VoxelToIndex(x, y, z int) int {
 	if x > 15 || y > 15 || z > 15 {
 		log.Panicf("coordinates %d %d %d are invalid: sub chunk cooridnates may not exceed 0-15", x, y, z)
 	}
 	return y + z*16 + x*16*16
 }
 
-// indexToVoxel returns the world x y z offset from the sub chunk root for the given block storage index.
-func subChunkIndexToVoxel(i int) (x, y, z int) {
+// IndexToVoxel returns the world x y z offset from the sub chunk root for the given block storage index.
+func IndexToVoxel(i int) (x, y, z int) {
 	x = (i >> 8) & 15
 	y = i & 15
 	z = (i >> 4) & 15
@@ -61,9 +61,10 @@ func subChunkIndexToVoxel(i int) (x, y, z int) {
 	return
 }
 
-func parseSubChunk(data []byte) (*subChunkData, error) {
+// Decode reads a sub chunk from the given bytes and returns a subchunk.Data.
+func Decode(data []byte) (*Data, error) {
 	r := bytes.NewReader(data)
-	s := subChunkData{}
+	s := Data{}
 
 	var version int8
 	if err := readLittleEndian(r, &version); err != nil {
@@ -111,10 +112,10 @@ func parseSubChunk(data []byte) (*subChunkData, error) {
 second block storage palette exceeded known max length of 2
 found these states - %+v`, s.WaterLogged.Palette)
 		}
-		if len(s.WaterLogged.Palette) > 1 && s.WaterLogged.Palette[1].BlockID() != waterID {
+		if len(s.WaterLogged.Palette) > 1 && s.WaterLogged.Palette[1].BlockID() != WaterID {
 			log.Panicf(`
 second block storage palette did not have '%s' at index 1 to indicate water logged blocks
-found id '%s' unexpectedly`, waterID, s.WaterLogged.Palette[1].BlockID())
+found id '%s' unexpectedly`, WaterID, s.WaterLogged.Palette[1].BlockID())
 		}
 
 	default:
@@ -157,9 +158,9 @@ func stateIndices(r *bytes.Reader) ([]int, error) {
 	}
 
 	blocksPerWord := int(math.Floor(32.0 / float64(bitsPerBlock)))
-	wordCount := int(math.Ceil(subChunkBlockCount / float64(blocksPerWord)))
+	wordCount := int(math.Ceil(BlockCount / float64(blocksPerWord)))
 
-	indices := make([]int, subChunkBlockCount)
+	indices := make([]int, BlockCount)
 
 	i := 0
 
@@ -169,7 +170,7 @@ func stateIndices(r *bytes.Reader) ([]int, error) {
 			return nil, fmt.Errorf("reading word %d from raw data: %s", w, err)
 		}
 
-		for b := 0; b < blocksPerWord && i < subChunkBlockCount; b++ {
+		for b := 0; b < blocksPerWord && i < BlockCount; b++ {
 			indices[i] = int((word >> ((i % blocksPerWord) * bitsPerBlock)) & ((1 << bitsPerBlock) - 1))
 			i++
 		}

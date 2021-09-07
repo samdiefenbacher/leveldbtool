@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/danhale-git/mine/world/subchunk"
+
 	"github.com/danhale-git/mine/mock"
 )
 
@@ -55,7 +57,7 @@ func BenchmarkGetBlock(b *testing.B) {
 func TestGetBlock(t *testing.T) {
 	w := World{
 		db:        mock.ValidLevelDB(),
-		subChunks: make(map[struct{ x, y, z, d int }]*subChunkData),
+		subChunks: make(map[struct{ x, y, z, d int }]*subchunk.Data),
 	}
 
 	expected := []Block{

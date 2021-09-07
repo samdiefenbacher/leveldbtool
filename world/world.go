@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/danhale-git/mine/world/subchunk"
+
 	"github.com/danhale-git/mine/leveldb"
 	"github.com/midnightfreddie/McpeTool/world"
 )
-
-const waterID = "minecraft:water"
 
 // BlockAPI modifies block data.
 type BlockAPI interface {
@@ -22,12 +22,12 @@ type LevelDB interface {
 
 type World struct {
 	db        LevelDB
-	subChunks map[struct{ x, y, z, d int }]*subChunkData
+	subChunks map[struct{ x, y, z, d int }]*subchunk.Data
 }
 
 func New(path string) (*World, error) {
 	w := World{}
-	w.subChunks = make(map[struct{ x, y, z, d int }]*subChunkData)
+	w.subChunks = make(map[struct{ x, y, z, d int }]*subchunk.Data)
 	l, err := world.OpenWorld(path)
 	if err != nil {
 		log.Fatal(err)
@@ -42,9 +42,10 @@ func New(path string) (*World, error) {
 
 // GetBlock returns the block at the given coordinates.
 func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
-	origin := subChunkOrigin(x, y, z, dimension)
+	xo, yo, zo := subchunk.Origin(x, y, z)
+	origin := struct{ x, y, z, d int }{xo, yo, zo, dimension}
 
-	var sc *subChunkData
+	var sc *subchunk.Data
 	var ok bool
 
 	if sc, ok = w.subChunks[origin]; !ok {
@@ -64,7 +65,7 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 			return Block{}, fmt.Errorf("getting sub chunk with key '%x': %w", key, err)
 		}
 
-		sc, err = parseSubChunk(value)
+		sc, err = subchunk.Decode(value)
 		if err != nil {
 			return Block{}, fmt.Errorf("decoding sub chunk value: %w", err)
 		}
@@ -72,7 +73,8 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 		w.subChunks[origin] = sc
 	}
 
-	voxelIndex := subChunkVoxelToIndex(worldVoxelToSubChunk(x, y, z))
+	voxelIndex := subchunk.VoxelToIndex(
+		subchunk.WorldToLocal(x, y, z))
 
 	blockIndex := sc.Blocks.Indices[voxelIndex]
 	blockID := sc.Blocks.Palette[blockIndex].BlockID()
@@ -81,7 +83,7 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 	if len(sc.WaterLogged.Indices) > 0 && len(sc.WaterLogged.Indices) >= voxelIndex {
 		waterIndex := sc.WaterLogged.Indices[voxelIndex]
 		blockID := sc.WaterLogged.Palette[waterIndex].BlockID()
-		waterLogged = blockID == waterID
+		waterLogged = blockID == subchunk.WaterID
 	}
 
 	return Block{
