@@ -21,11 +21,13 @@ type LevelDB interface {
 }
 
 type World struct {
-	db LevelDB
+	db        LevelDB
+	subChunks map[struct{ x, y, z, d int }]*subChunkData
 }
 
 func New(path string) (*World, error) {
 	w := World{}
+	w.subChunks = make(map[struct{ x, y, z, d int }]*subChunkData)
 	l, err := world.OpenWorld(path)
 	if err != nil {
 		log.Fatal(err)
@@ -40,35 +42,69 @@ func New(path string) (*World, error) {
 
 // GetBlock returns the block at the given coordinates.
 func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
-	key, err := leveldb.SubChunkKey(
-		x, y, z,
-		dimension,
-	)
+	origin := subChunkOrigin(x, y, z, dimension)
 
-	value, err := w.db.Get(key)
-	if err != nil {
-		return Block{}, fmt.Errorf("getting sub chunk with key '%s' from leveldb: %w", key, err)
+	var sc *subChunkData
+	var ok bool
+
+	if sc, ok = w.subChunks[origin]; !ok {
+		key, err := leveldb.SubChunkKey(
+			x, y, z,
+			dimension,
+		)
+
+		value, err := w.db.Get(key)
+		if err != nil {
+
+			// TODO: Make a PR to give this error a type - https://github.com/midnightfreddie/goleveldb/blob/fb12d34a9c1f2c7615bb9b258d09400cd315502f/leveldb/errors/errors.go#L19
+
+			if err.Error() == "leveldb: not found" {
+				return Block{}, &SubChunkNotSavedError{origin}
+			}
+			return Block{}, fmt.Errorf("getting sub chunk with key '%x': %w", key, err)
+		}
+
+		sc, err = parseSubChunk(value)
+		if err != nil {
+			return Block{}, fmt.Errorf("decoding sub chunk value: %w", err)
+		}
+
+		w.subChunks[origin] = sc
 	}
 
-	sc, err := parseSubChunk(value)
-	if err != nil {
-		return Block{}, fmt.Errorf("decoding sub chunk value: %w", err)
-	}
+	voxelIndex := subChunkVoxelToIndex(worldVoxelToSubChunk(x, y, z))
 
-	voxelIndex := subChunkVoxelToIndex(x, y, z)
 	blockIndex := sc.Blocks.Indices[voxelIndex]
 	blockID := sc.Blocks.Palette[blockIndex].BlockID()
 
 	waterLogged := false
-	if len(sc.WaterLogged.Indices) >= voxelIndex {
+	if len(sc.WaterLogged.Indices) > 0 && len(sc.WaterLogged.Indices) >= voxelIndex {
 		waterIndex := sc.WaterLogged.Indices[voxelIndex]
 		blockID := sc.WaterLogged.Palette[waterIndex].BlockID()
 		waterLogged = blockID == waterID
 	}
 
 	return Block{
-		id: blockID,
+		ID: blockID,
 		X:  x, Y: y, Z: z,
 		waterLogged: waterLogged,
 	}, nil
+}
+
+// SubChunkNotSavedError is returned if a requested sub chunk is not present in the world database.
+type SubChunkNotSavedError struct {
+	origin struct{ x, y, z, d int }
+}
+
+// TODO: State the dimension in the error message, when dimensions are supported
+
+func (e *SubChunkNotSavedError) Error() string {
+	return fmt.Sprintf("chunk with origin %d %d %d is not stored in this world database",
+		e.origin.x, e.origin.y, e.origin.z)
+}
+
+// Is implements Is(error) to support errors.Is()
+func (e *SubChunkNotSavedError) Is(tgt error) bool {
+	_, ok := tgt.(*SubChunkNotSavedError)
+	return ok
 }
