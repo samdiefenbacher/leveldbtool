@@ -21,8 +21,8 @@ type LevelDB interface {
 }
 
 type World struct {
-	db        LevelDB
-	subChunks map[struct{ x, y, z, d int }]*subchunk.Data
+	db        LevelDB                                     // Sub chunk data in LevelDB format
+	subChunks map[struct{ x, y, z, d int }]*subchunk.Data // Map of sub chunk origin coordinates to data
 }
 
 func New(path string) (*World, error) {
@@ -37,8 +37,6 @@ func New(path string) (*World, error) {
 
 	return &w, nil
 }
-
-// TODO: Don't get the sub chunk from the DB every time, cache it
 
 // GetBlock returns the block at the given coordinates.
 func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
@@ -73,32 +71,27 @@ func (w *World) GetBlock(x, y, z, dimension int) (Block, error) {
 		w.subChunks[origin] = sc
 	}
 
-	voxelIndex := subchunk.VoxelToIndex(
-		subchunk.WorldToLocal(x, y, z))
+	blockState, waterlogged := sc.BlockState(worldToLocal(x, y, z))
 
-	blockIndex := sc.Blocks.Indices[voxelIndex]
-	blockID := sc.Blocks.Palette[blockIndex].BlockID()
-
-	waterLogged := false
-	if len(sc.WaterLogged.Indices) > 0 && len(sc.WaterLogged.Indices) >= voxelIndex {
-		waterIndex := sc.WaterLogged.Indices[voxelIndex]
-		blockID := sc.WaterLogged.Palette[waterIndex].BlockID()
-		waterLogged = blockID == subchunk.WaterID
-	}
-
+	// TODO: replace block with blockstate here?
 	return Block{
-		ID: blockID,
+		ID: blockState.BlockID(),
 		X:  x, Y: y, Z: z,
-		waterLogged: waterLogged,
+		waterLogged: waterlogged,
 	}, nil
+}
+
+//TODO: localtoworld - save origin and add it to local coords
+
+// worldToLocal returns the coordinates relative to sub chunk origin, from the given world coordinates.
+func worldToLocal(x, y, z int) (sx, sy, sz int) {
+	return x % subchunk.Size, y % subchunk.Size, z % subchunk.Size
 }
 
 // SubChunkNotSavedError is returned if a requested sub chunk is not present in the world database.
 type SubChunkNotSavedError struct {
 	origin struct{ x, y, z, d int }
 }
-
-// TODO: State the dimension in the error message, when dimensions are supported
 
 func (e *SubChunkNotSavedError) Error() string {
 	return fmt.Sprintf("chunk with origin %d %d %d is not stored in this world database",
