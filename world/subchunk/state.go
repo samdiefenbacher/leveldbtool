@@ -1,14 +1,16 @@
-package nbt
+package subchunk
 
 import "fmt"
 
-type NBTTag struct {
+// BlockState provides read and write access to a single sub chunk state palette entry
+type BlockState struct {
 	Type  byte        `json:"tagType"`
 	Name  string      `json:"name"`
 	Value interface{} `json:"value"`
 }
 
-func (n *NBTTag) BlockID() string {
+// BlockID returns the ID string for this state
+func (n *BlockState) BlockID() string {
 	//	fmt.Printf("%+v\n", n)
 	if vs, ok := n.Value.([]interface{}); ok {
 		for _, t := range vs {
@@ -19,7 +21,7 @@ func (n *NBTTag) BlockID() string {
 			}
 		}
 	} else {
-		fmt.Println("failed to convert to NBTTag")
+		fmt.Println("failed to convert to BlockState")
 	}
 
 	return ""

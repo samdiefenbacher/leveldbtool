@@ -9,7 +9,6 @@ import (
 	"log"
 	"math"
 
-	"github.com/danhale-git/mine/nbt"
 	"github.com/danhale-git/nbt2json"
 )
 
@@ -60,9 +59,10 @@ func Decode(data []byte) (*Data, error) {
 		// Added some panicking here as the Minecraft level format seems changeable.
 
 		if len(s.WaterLogged.Palette) > 2 {
+			b, err := json.MarshalIndent(s.WaterLogged.Palette, "", "  ")
 			log.Panicf(`
 second block storage palette exceeded known max length of 2
-found these states - %+v`, s.WaterLogged.Palette)
+found these states - %s, %s`, string(b), err)
 		}
 		if len(s.WaterLogged.Palette) > 1 && s.WaterLogged.Palette[1].BlockID() != WaterID {
 			log.Panicf(`
@@ -77,9 +77,9 @@ found id '%s' unexpectedly`, WaterID, s.WaterLogged.Palette[1].BlockID())
 	return &s, nil
 }
 
-func parseBlockStorage(r *bytes.Reader) ([]int, []nbt.NBTTag, error) {
+func parseBlockStorage(r *bytes.Reader) ([]int, []BlockState, error) {
 	var indices []int
-	var palette []nbt.NBTTag
+	var palette []BlockState
 
 	indices, err := stateIndices(r)
 	if err != nil {
@@ -133,7 +133,7 @@ func stateIndices(r *bytes.Reader) ([]int, error) {
 
 // statePalette reads the remainder of a subchunk record and returns a slice of tags. It should be called after blockStorageCount and
 // the resulting call(s) to stateIndices.
-func statePalette(r *bytes.Reader) ([]nbt.NBTTag, error) {
+func statePalette(r *bytes.Reader) ([]BlockState, error) {
 	var paletteSize int32
 	if err := readLittleEndian(r, &paletteSize); err != nil {
 		return nil, fmt.Errorf("reading palette size bytes: %w", err)
@@ -145,11 +145,14 @@ func statePalette(r *bytes.Reader) ([]nbt.NBTTag, error) {
 	}
 
 	nbtData := struct {
-		NBT []nbt.NBTTag
+		NBT []BlockState
 	}{}
 	if err := json.Unmarshal(j, &nbtData); err != nil {
 		return nil, fmt.Errorf("unmarshaling json, %w", err)
 	}
+
+	m, err := json.MarshalIndent(nbtData, "", "  ") //DEBUG
+	fmt.Println(len(m), err)                        //DEBUG
 
 	if len(nbtData.NBT) != int(paletteSize) {
 		return nil, fmt.Errorf("%d nbt records returned for palette size of %d", len(nbtData.NBT), paletteSize)

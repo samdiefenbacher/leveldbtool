@@ -2,8 +2,6 @@ package subchunk
 
 import (
 	"log"
-
-	"github.com/danhale-git/mine/nbt"
 )
 
 // Data is the parsed data for one 16x16 subchunk. A palette including all block states in the subchunk is indexed
@@ -15,10 +13,10 @@ type Data struct {
 
 type blockStorage struct {
 	Indices []int        // An index into the palette for each block in the sub chunk
-	Palette []nbt.NBTTag // A palette of block types and states
+	Palette []BlockState // A palette of block types and states
 }
 
-func (d *Data) BlockState(x, y, z int) (nbt.NBTTag, bool) {
+func (d *Data) BlockState(x, y, z int) (BlockState, bool) {
 	voxelIndex := voxelToIndex(x, y, z)
 
 	waterLogged := false
