@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"log"
 	"path/filepath"
 
@@ -51,6 +52,9 @@ func Init() error {
 					}*/
 					_, err := w.GetBlock(x /*y*/, 3, z, 0)
 					if err != nil {
+						if errors.Is(err, &world.SubChunkNotSavedError{}) {
+							continue
+						}
 						log.Fatal(err)
 					}
 					i++

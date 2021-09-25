@@ -7,8 +7,8 @@ import (
 // Data is the parsed data for one 16x16 subchunk. A palette including all block states in the subchunk is indexed
 // by a slice of integers (one for each block) to determine the state and block id for each block in the palette.
 type Data struct {
-	Blocks      blockStorage
-	WaterLogged blockStorage
+	Blocks blockStorage
+	Water  blockStorage
 }
 
 type blockStorage struct {
@@ -20,10 +20,12 @@ func (d *Data) BlockState(x, y, z int) (BlockState, bool) {
 	voxelIndex := voxelToIndex(x, y, z)
 
 	waterLogged := false
-	if len(d.WaterLogged.Indices) > 0 && len(d.WaterLogged.Indices) >= voxelIndex {
-		waterIndex := d.WaterLogged.Indices[voxelIndex]
-		blockID := d.WaterLogged.Palette[waterIndex].BlockID()
+	if len(d.Water.Indices) > 0 && len(d.Water.Indices) >= voxelIndex {
+		waterIndex := d.Water.Indices[voxelIndex]
+		blockID := d.Water.Palette[waterIndex].BlockID()
 		waterLogged = blockID == WaterID
+
+		// TODO: Support the flowing water state
 	}
 
 	blockIndex := d.Blocks.Indices[voxelIndex]

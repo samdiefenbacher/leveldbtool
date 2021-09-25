@@ -52,22 +52,22 @@ func Decode(data []byte) (*Data, error) {
 		// Block storage has already been parsed above
 	case 2:
 		// Parse second block storage as water logged if it exists
-		s.WaterLogged.Indices, s.WaterLogged.Palette, err = parseBlockStorage(r)
+		s.Water.Indices, s.Water.Palette, err = parseBlockStorage(r)
 		if err != nil {
 			return nil, fmt.Errorf("parsing water logged: %s", err)
 		}
 		// Added some panicking here as the Minecraft level format seems changeable.
 
-		if len(s.WaterLogged.Palette) > 2 {
-			b, err := json.MarshalIndent(s.WaterLogged.Palette, "", "  ")
+		if len(s.Water.Palette) > 3 {
+			b, err := json.MarshalIndent(s.Water.Palette, "", "  ")
 			log.Panicf(`
 second block storage palette exceeded known max length of 2
 found these states - %s, %s`, string(b), err)
 		}
-		if len(s.WaterLogged.Palette) > 1 && s.WaterLogged.Palette[1].BlockID() != WaterID {
+		if len(s.Water.Palette) > 1 && s.Water.Palette[1].BlockID() != WaterID {
 			log.Panicf(`
 second block storage palette did not have '%s' at index 1 to indicate water logged blocks
-found id '%s' unexpectedly`, WaterID, s.WaterLogged.Palette[1].BlockID())
+found id '%s' unexpectedly`, WaterID, s.Water.Palette[1].BlockID())
 		}
 
 	default:
