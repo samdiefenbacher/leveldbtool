@@ -81,12 +81,12 @@ func parseBlockStorage(r *bytes.Reader) ([]int, []BlockState, error) {
 	var indices []int
 	var palette []BlockState
 
-	indices, err := stateIndices(r)
+	indices, err := readStateIndices(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing water logged indices: %s", err)
 	}
 
-	palette, err = statePalette(r)
+	palette, err = readStatePalette(r)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing nbt data: %s", err)
 	}
@@ -94,9 +94,9 @@ func parseBlockStorage(r *bytes.Reader) ([]int, []BlockState, error) {
 	return indices, palette, nil
 }
 
-// stateIndices reads a single block storage record as the integer indices into the palette. It should be called
+// readStateIndices reads a single block storage record as the integer indices into the palette. It should be called
 // the number of times returned by blockStorageCount, after calling blockStorageCount.
-func stateIndices(r *bytes.Reader) ([]int, error) {
+func readStateIndices(r io.Reader) ([]int, error) {
 	var bitsPerBlockAndVersion byte
 	if err := readLittleEndian(r, &bitsPerBlockAndVersion); err != nil {
 		log.Fatalf("reading version byte: %s", err)
@@ -131,9 +131,9 @@ func stateIndices(r *bytes.Reader) ([]int, error) {
 	return indices, nil
 }
 
-// statePalette reads the remainder of a subchunk record and returns a slice of tags. It should be called after blockStorageCount and
-// the resulting call(s) to stateIndices.
-func statePalette(r *bytes.Reader) ([]BlockState, error) {
+// readStatePalette reads the remainder of a subchunk record and returns a slice of tags. It should be called after blockStorageCount and
+// the resulting call(s) to readStateIndices.
+func readStatePalette(r *bytes.Reader) ([]BlockState, error) {
 	var paletteSize int32
 	if err := readLittleEndian(r, &paletteSize); err != nil {
 		return nil, fmt.Errorf("reading palette size bytes: %w", err)
@@ -150,9 +150,6 @@ func statePalette(r *bytes.Reader) ([]BlockState, error) {
 	if err := json.Unmarshal(j, &nbtData); err != nil {
 		return nil, fmt.Errorf("unmarshaling json, %w", err)
 	}
-
-	m, err := json.MarshalIndent(nbtData, "", "  ") //DEBUG
-	fmt.Println(len(m), err)                        //DEBUG
 
 	if len(nbtData.NBT) != int(paletteSize) {
 		return nil, fmt.Errorf("%d nbt records returned for palette size of %d", len(nbtData.NBT), paletteSize)

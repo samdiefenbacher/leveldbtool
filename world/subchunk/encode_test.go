@@ -1,23 +1,40 @@
 package subchunk
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/danhale-git/mine/mock"
 )
 
-func TestNew(t *testing.T) {
-	_, err := Decode(mock.SubChunkValue)
-	if err != nil {
-		t.Errorf("unexpected error returned: %s", err)
+func mockBlockStorage() *blockStorage {
+	statePalette := mock.StatePaletteIDs()
+
+	states := make([]BlockState, len(statePalette))
+	for i, s := range states {
+		s.Value = map[string]interface{}{
+			"name":  "name",
+			"value": statePalette[i],
+		}
+	}
+
+	return &blockStorage{
+		Indices: mock.BlockStateIndices,
+		Palette: states,
 	}
 }
 
-func TestReadStateIndices(t *testing.T) {
-	r := mock.SubChunkReader()
-	_, _ = r.Read(make([]byte, 2))
+func TestWriteStateIndices(t *testing.T) {
+	data := make([]byte, 0)
+	buf := bytes.NewBuffer(data)
 
-	indices, err := readStateIndices(r)
+	storage := mockBlockStorage()
+
+	if err := writeStateIndices(buf, storage); err != nil {
+		t.Errorf("unexpected error returned: %s", err)
+	}
+
+	/*indices, err := readStateIndices(buf)
 	if err != nil {
 		t.Errorf("unexpected error returned: %s", err)
 	}
@@ -38,5 +55,5 @@ func TestReadStateIndices(t *testing.T) {
 
 	if len(indices) != BlockCount {
 		t.Errorf("expected %d blocks state indices: got %d", BlockCount, len(indices))
-	}
+	}*/
 }

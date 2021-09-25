@@ -61,9 +61,9 @@ func TestGetBlock(t *testing.T) {
 	}
 
 	expected := []Block{
-		{Y: 0, ID: "minecraft:crimson_planks", waterLogged: false, X: 0, Z: 0},
-		{Y: 1, ID: "minecraft:fence", waterLogged: true, X: 0, Z: 0},
-		{Y: 2, ID: "minecraft:air", waterLogged: false, X: 0, Z: 0},
+		{Y: 0, ID: mock.BlockID(0), waterLogged: false, X: 0, Z: 0},
+		{Y: 1, ID: mock.BlockID(1), waterLogged: true, X: 0, Z: 0},
+		{Y: 2, ID: mock.BlockID(2), waterLogged: false, X: 0, Z: 0},
 	}
 
 	for y := 0; y < 3; y++ {
