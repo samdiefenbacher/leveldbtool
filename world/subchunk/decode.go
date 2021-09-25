@@ -117,7 +117,7 @@ func stateIndices(r *bytes.Reader) ([]int, error) {
 	i := 0
 
 	for w := 0; w < wordCount; w++ {
-		var word int32
+		var word uint32
 		if err := readLittleEndian(r, &word); err != nil {
 			return nil, fmt.Errorf("reading word %d from raw data: %s", w, err)
 		}
