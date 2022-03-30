@@ -1,4 +1,4 @@
-module github.com/samdiefenbacher/minetool
+module github.com/samdiefenbacher/leveldbtool
 
 go 1.16
 
