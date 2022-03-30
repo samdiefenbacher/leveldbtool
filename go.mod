@@ -1,4 +1,4 @@
-module github.com/danhale-git/mine
+module github.com/danhale-git/minetool
 
 go 1.16
 
